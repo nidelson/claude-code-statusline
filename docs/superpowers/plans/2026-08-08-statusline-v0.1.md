@@ -733,9 +733,10 @@ git commit -m "feat: configuração em JSON com degradação segura"
   - `sl_render_all` — imprime todas as linhas de `SL_CONFIG_LINES`
   - `widget_model_render`
 
-**Nota:** os exemplos abaixo usam `WIDGET_OUT`. Se a Task 4 decidiu por stdout,
-trocar `WIDGET_OUT="X"` por `printf '%s' "X"` nos widgets e
-`WIDGET_OUT=""; "$fn"` por `out="$("$fn")"` no núcleo. O restante é idêntico.
+**Contrato fixado pela Task 4: stdout.** Widgets imprimem com `printf`; o núcleo
+captura com `out="$("$fn" 2>/dev/null)" || out=""`. Os exemplos de código desta
+tarefa em diante já refletem isso. Medição e critério em
+`docs/superpowers/decisions/2026-08-08-canal-de-retorno.md`.
 
 - [ ] **Step 1: Escrever o teste que falha**
 

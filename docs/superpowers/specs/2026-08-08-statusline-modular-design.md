@@ -160,14 +160,15 @@ projetado, não conforme a preferência do usuário.
 
 ### Canal de retorno
 
-O render escreve na variável `WIDGET_OUT` em vez do stdout. A forma idiomática
-seria `saida=$(widget_fn)`, mas command substitution em bash sempre cria um
-subprocesso — com onze widgets, são onze forks por repaint.
+O render escreve no **stdout**; o núcleo captura com command substitution.
 
-Esta decisão está **pendente de medição**. O plano de implementação inclui uma
-etapa que constrói os dois caminhos no esqueleto, mede com os três widgets do
-v0.1 na máquina alvo, e decide com número em vez de estimativa. Se a diferença
-for irrelevante, o stdout vence por legibilidade.
+Isto foi decidido por medição, não por estimativa. Com onze widgets sintéticos e
+duzentos repaints em bash 3.2, a alternativa sem subprocesso (variável global
+`WIDGET_OUT`) ficou 3,5 ms por repaint à frente — abaixo do limiar de 5 ms
+fixado antes do benchmark. Legibilidade e isolamento venceram.
+
+Detalhes, números e critério em
+[`docs/superpowers/decisions/2026-08-08-canal-de-retorno.md`](../decisions/2026-08-08-canal-de-retorno.md).
 
 ### Cache como infraestrutura
 
@@ -335,8 +336,9 @@ houver paridade suficiente, não antes.
 
 ## Questões em aberto
 
-- **Canal de retorno do widget** (`WIDGET_OUT` versus stdout). Resolver por
-  medição, em etapa dedicada do plano de implementação.
+Nenhuma. O canal de retorno, única pendência do design original, foi decidido
+por medição em 2026-08-08 — ver
+[a decisão](../decisions/2026-08-08-canal-de-retorno.md).
 
 ## Referências
 
