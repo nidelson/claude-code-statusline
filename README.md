@@ -31,10 +31,10 @@ work. The second one is harder to surface and easier to forget.
 ## Status
 
 v0.1. The widget contract is settled and covered by tests; the widget set is
-deliberately small. Four widgets ship today — `model`, `git`, `worktree` and
-`rate-forecast`. They were chosen because each one exercises a different part of
-the contract: no state, cached state, and an external process with semantic
-colours.
+deliberately small. Five widgets ship today — `model`, `git`, `worktree`,
+`context` and `rate-forecast`. They were chosen because each one exercises a
+different part of the contract: no state, cached state, pure arithmetic, and an
+external process with semantic colours.
 
 ## Requirements
 
@@ -140,6 +140,32 @@ The directory name of a linked worktree, and nothing at all in the main working
 tree — the point is to signal "you are not in the usual checkout". Stays quiet
 when the directory name already matches the branch name, since `git` is showing
 that anyway.
+
+### `context`
+
+Context window usage as a gradient bar, followed by the percentage and the token
+counts: `████▌░░░░░░ 23% (45k/200k)`. The percentage is green, yellow from 70%,
+red from 90%.
+
+| Option | Values | Default |
+|---|---|---|
+| `width` | cells in the bar | `20` |
+| `tokens` | `true`, `false` — show the `(used/total)` suffix | `true` |
+
+The bar renders in eighths using Unicode block characters, so a 20-cell bar has
+160 steps rather than 20. At full-block resolution each step is 5% and the bar
+sits still through most of a session before jumping; at eighths it moves
+continuously.
+
+Usage is taken from `total_input_tokens`, the session accumulator, which is the
+number Claude Code's own interface reports. Last-exchange usage understates the
+real context by roughly 9%.
+
+A window can be overrun by a single large exchange. The percentage then reads
+past 100 — that is real information — but the bar stops at its configured width,
+because a bar that outgrows its own track pushes the rest of the line sideways.
+
+Colour is semantic — the `color` option does not apply.
 
 ### `rate-forecast`
 

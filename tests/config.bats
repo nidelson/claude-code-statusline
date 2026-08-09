@@ -70,3 +70,37 @@ EOF
   sl_config_load "$TMPCFG"
   [ -z "$(sl_config_widget_opt model color)" ]
 }
+
+@test "a false widget option survives as false" {
+  # Em jq, `//` cai para o lado direito em null E em false. Com `// empty` uma
+  # opção booleana desligada voltaria vazia, e seria lida como "não configurado".
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'JSON'
+{"version":1,"lines":[["model"]],"widgets":{"context":{"tokens":false}}}
+JSON
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  [ "$(sl_config_widget_opt context tokens)" = "false" ]
+}
+
+@test "a true widget option comes back as true" {
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'JSON'
+{"version":1,"lines":[["model"]],"widgets":{"context":{"tokens":true}}}
+JSON
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  [ "$(sl_config_widget_opt context tokens)" = "true" ]
+}
+
+@test "a numeric widget option comes back as a string" {
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'JSON'
+{"version":1,"lines":[["git"]],"widgets":{"git":{"ttl":30}}}
+JSON
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  [ "$(sl_config_widget_opt git ttl)" = "30" ]
+}
+
+@test "an unset widget option comes back empty" {
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'JSON'
+{"version":1,"lines":[["git"]]}
+JSON
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  [ "$(sl_config_widget_opt git ttl)" = "" ]
+}

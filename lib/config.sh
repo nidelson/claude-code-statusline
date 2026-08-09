@@ -57,10 +57,15 @@ sl_config_load() {
   return 0
 }
 
+# `// empty` seria o idioma óbvio aqui, e está errado: em jq o `//` cai para o
+# lado direito tanto em null quanto em false, então `"tokens": false` voltaria
+# vazio — indistinguível de "o usuário não configurou nada", e a opção nunca
+# poderia ser desligada. O teste explícito contra null preserva o false, e o
+# tostring devolve números e booleanos como string, que é o que o bash consome.
 sl_config_widget_opt() {
   local widget="$1" key="$2" value
   [ -n "$SL_CONFIG_RAW" ] || return 0
-  value="$(printf '%s' "$SL_CONFIG_RAW" \
-    | jq -r --arg w "$widget" --arg k "$key" '.widgets[$w][$k] // empty' 2>/dev/null)" || value=""
+  value="$(printf '%s' "$SL_CONFIG_RAW" | jq -r --arg w "$widget" --arg k "$key" \
+    '.widgets[$w][$k] | if . == null then empty else tostring end' 2>/dev/null)" || value=""
   printf '%s' "$value"
 }
