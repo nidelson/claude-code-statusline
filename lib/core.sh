@@ -3,13 +3,14 @@
 # bash 3.2 não tem arrays associativos, então os atributos moram em variáveis
 # cujo nome deriva do nome do widget: _W_RENDER_model, _W_COLOR_model. A leitura
 # usa indireção `${!var}`, que dispensa eval.
-# Hífen não é legal em nome de variável, então vira underscore.
+# Hífen não é legal em nome de variável, então vira underscore. Dois-pontos
+# também não, e aparecem nas instâncias de `command:<nome>`.
 
 SL_WIDGET_LIST=""
 
 _sl_slug() {
   local name="$1"
-  printf '%s' "${name//-/_}"
+  printf '%s' "${name//[-:]/_}"
 }
 
 register_widget() {

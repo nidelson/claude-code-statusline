@@ -30,11 +30,15 @@ work. The second one is harder to surface and easier to forget.
 
 ## Status
 
-v0.1. The widget contract is settled and covered by tests. Twelve widgets ship
+v0.1. The widget contract is settled and covered by tests. Thirteen widgets ship
 today — `model`, `repo`, `branch`, `git`, `git-status`, `worktree`, `context`,
-`velocity`, `cache`, `cost`, `rate-forecast` and `sprint` — each exercising a
-different part of the contract: no state, cached state, pure arithmetic,
-terminal escape sequences, and external processes with semantic colours.
+`velocity`, `cache`, `cost`, `rate-forecast`, `sprint` and `command` — each
+exercising a different part of the contract: no state, cached state, pure
+arithmetic, terminal escape sequences, and external processes with semantic
+colours.
+
+`command` is the escape hatch: it runs any program and renders its output, so a
+data source the plugin has never heard of needs configuration rather than code.
 
 `git` is `branch` and `git-status` fused into one. Use `git` on its own, or the
 other two — never all three, or the same `git status` runs twice per repaint.
@@ -370,6 +374,59 @@ already the core's input-failure marker, and both can land on the same line. A
 story in review is a queue state, not an error.
 
 Colour is semantic — the `color` option does not apply.
+
+### `command`
+
+Runs an external command and shows its output. This is the escape hatch: any
+data source, no bash required.
+
+Instances are named `command:<name>`, so you can have several:
+
+```json
+{
+  "lines": [["model", "command:flow", "command:weather"]],
+  "widgets": {
+    "command:flow": {
+      "cmd": "~/.claude/flow-line.sh",
+      "refresh": "~/.claude/flow-consumption-line.sh",
+      "ttl": 60,
+      "colors": true
+    },
+    "command:weather": { "cmd": "curl -s wttr.in/?format=3", "ttl": 900 }
+  }
+}
+```
+
+| Option | Values | Default |
+|---|---|---|
+| `cmd` | shell command producing the text | required |
+| `refresh` | shell command run detached when the ttl expires | none |
+| `ttl` | seconds; `0` disables caching | `60` |
+| `timeout` | seconds before the command is killed | `2` |
+| `colors` | `true` keeps colour sequences from the output | `false` |
+| `label` | text prefixed to the output | none |
+
+**Reading and refreshing are separate on purpose.** `cmd` produces the text and
+must be fast. `refresh` is optional, runs detached, and exists to warm whatever
+`cmd` reads. A fetcher that talks to the network cannot run synchronously — the
+whole statusline would wait on its latency. With both, the widget shows the
+previous round's result and kicks off the next one in the background.
+
+**Third-party output is sanitised.** Escape sequences are not decoration: OSC 52
+writes to the user's clipboard, OSC 0 and 2 change the window title, and CSI
+moves the cursor and can scramble the screen. By default nothing gets through.
+`colors: true` opens one narrow exception — SGR, the CSI ending in `m`, which
+only changes colour and style — and still strips the rest. Newlines are collapsed
+too, since the statusline composes its own lines.
+
+**`cmd` runs through `bash -c`**, so `~` and `$VAR` expand as you would expect
+when writing a path into the config. It also means the config file is executable
+content: treat it with the same care as your shell rc.
+
+**Timeouts work without coreutils.** macOS ships no `timeout(1)`, and without
+Homebrew coreutils there is no `gtimeout` either. When neither exists the widget
+falls back to a pure-bash watchdog, so a hung command still cannot freeze the
+statusline.
 
 ## Writing a widget
 
