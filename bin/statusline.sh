@@ -4,7 +4,9 @@
 
 SL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-input="$(cat)"
+. "$SL_ROOT/lib/stdin.sh"
 
-# Placeholder until Task 2 wires the real parser.
-printf '%s\n' "claude-code-statusline"
+input="$(cat)"
+sl_parse_stdin "$input"
+
+printf '%s\n' "$SL_MODEL"
