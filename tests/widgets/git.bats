@@ -53,3 +53,50 @@ setup() {
 @test "registers itself on load" {
   sl_widget_registered git
 }
+
+@test "shows the branch inside a linked worktree" {
+  WT="$BATS_TEST_TMPDIR/wt"
+  git -C "$REPO" worktree add -q -b probe "$WT"
+  SL_CWD="$WT"
+  run widget_git_render
+  [[ "$output" == *"probe"* ]]
+}
+
+@test "caches inside a linked worktree" {
+  # Em um worktree linkado, .git é um arquivo com "gitdir: ...", não um
+  # diretório — então $toplevel/.git/HEAD não existe e o cache cairia no
+  # caminho "sem sentinela", spawnando git a cada repaint. A sentinela precisa
+  # sair de `git rev-parse --git-dir`.
+  #
+  # A contagem usa `find`, não `ls | wc -l` capturado por `run`: o `run` do bats
+  # combina stdout e stderr, então um diretório inexistente faria a mensagem de
+  # erro do ls entrar na saída e o teste passaria sem cache nenhum.
+  WT="$BATS_TEST_TMPDIR/wt2"
+  git -C "$REPO" worktree add -q -b probe2 "$WT"
+  SL_CWD="$WT"
+  widget_git_render >/dev/null
+  [ -d "$SL_CACHE_DIR" ]
+  [ "$(find "$SL_CACHE_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')" -gt 0 ]
+}
+
+@test "the cached value is reused inside a worktree" {
+  WT="$BATS_TEST_TMPDIR/wt4"
+  git -C "$REPO" worktree add -q -b probe4 "$WT"
+  SL_CWD="$WT"
+  widget_git_render >/dev/null
+  # Adultera o cache: se a segunda chamada o consultar, devolve o valor plantado.
+  cache_file="$(find "$SL_CACHE_DIR" -type f | head -1)"
+  stamp="$(head -1 "$cache_file")"
+  printf '%s\nPLANTED' "$stamp" > "$cache_file"
+  run widget_git_render
+  [ "$output" = "PLANTED" ]
+}
+
+@test "worktree and main repo do not share a cache entry" {
+  WT="$BATS_TEST_TMPDIR/wt3"
+  git -C "$REPO" worktree add -q -b probe3 "$WT"
+  SL_CWD="$REPO"; run widget_git_render
+  main_out="$output"
+  SL_CWD="$WT";   run widget_git_render
+  [ "$output" != "$main_out" ]
+}
