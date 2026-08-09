@@ -30,11 +30,11 @@ work. The second one is harder to surface and easier to forget.
 
 ## Status
 
-v0.1. The widget contract is settled and covered by tests. Eleven widgets ship
+v0.1. The widget contract is settled and covered by tests. Twelve widgets ship
 today — `model`, `repo`, `branch`, `git`, `git-status`, `worktree`, `context`,
-`velocity`, `cache`, `cost` and `rate-forecast` — each exercising a different
-part of the contract: no state, cached state, pure arithmetic, terminal escape
-sequences, and an external process with semantic colours.
+`velocity`, `cache`, `cost`, `rate-forecast` and `sprint` — each exercising a
+different part of the contract: no state, cached state, pure arithmetic,
+terminal escape sequences, and external processes with semantic colours.
 
 `git` is `branch` and `git-status` fused into one. Use `git` on its own, or the
 other two — never all three, or the same `git status` runs twice per repaint.
@@ -328,6 +328,46 @@ $SL_FORECAST_BIN <label> <used_pct> <resets_at_epoch> <window_seconds>
 
 `SL_FORECAST_BIN` defaults to `$HOME/.claude/rate-forecast.sh`. Without it the
 widget still shows the current percentage — a degraded reading beats no reading.
+
+Colour is semantic — the `color` option does not apply.
+
+### `sprint`
+
+Sprint health for projects that keep sprint state in a file: `7/10 ▸2 ⊙1` —
+stories done over total in the active epics, two queued for development, one
+waiting on review. The ratio is green from 80% done, yellow from 40%, red below.
+
+| Option | Values | Default |
+|---|---|---|
+| `path` | file path, relative to the working tree root | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
+
+This is the methodology widget. The others describe the machine; this one
+describes the work. It renders nothing in a project that does not follow the
+convention — no file, nothing to say — so there is no need to switch it off per
+project.
+
+The parsing lives in an external helper, because the format is something teams
+adapt. Swapping methodology means swapping the helper, not patching the plugin:
+
+```
+$SL_SPRINT_BIN <path/to/file>
+→ stdout: "<done>/<total> <ready> <review>", empty when no sprint is active
+→ exit:   0, always
+```
+
+`SL_SPRINT_BIN` defaults to `$HOME/.claude/sprint-health-line.sh`. Without it the
+widget stays silent — there is no partial reading to fall back to, unlike
+`rate-forecast`.
+
+Inside a linked worktree it reads that worktree's own file, not the main tree's:
+each branch carries its own sprint state.
+
+Unlike the git widgets, this one caches on `mtime` and that is exact — sprint
+state does live in a file, so the parse runs when the file changes and only then.
+
+The review count uses `⊙`, where the original statusline used `⚠`. Here `⚠` is
+already the core's input-failure marker, and both can land on the same line. A
+story in review is a queue state, not an error.
 
 Colour is semantic — the `color` option does not apply.
 
