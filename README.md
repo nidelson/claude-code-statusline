@@ -31,10 +31,10 @@ work. The second one is harder to surface and easier to forget.
 ## Status
 
 v0.1. The widget contract is settled and covered by tests; the widget set is
-deliberately small. Five widgets ship today — `model`, `git`, `worktree`,
-`context` and `rate-forecast`. They were chosen because each one exercises a
-different part of the contract: no state, cached state, pure arithmetic, and an
-external process with semantic colours.
+deliberately small. Six widgets ship today — `model`, `git`, `worktree`,
+`context`, `cost` and `rate-forecast`. They were chosen because each one
+exercises a different part of the contract: no state, cached state, pure
+arithmetic, and an external process with semantic colours.
 
 ## Requirements
 
@@ -166,6 +166,26 @@ past 100 — that is real information — but the bar stops at its configured wi
 because a bar that outgrows its own track pushes the rest of the line sideways.
 
 Colour is semantic — the `color` option does not apply.
+
+### `cost`
+
+Accumulated session cost: `$3.50`.
+
+| Option | Values | Default |
+|---|---|---|
+| `warn` | USD amount | unset |
+| `crit` | USD amount | unset |
+| `color` | a palette name | `yellow`, or `green` when a threshold is set |
+
+With no thresholds the widget just reports, in yellow. Set `warn` or `crit` and
+it becomes a traffic light: green below `warn`, yellow from `warn`, red from
+`crit`. The floor turns green on purpose — leaving it yellow would make crossing
+`warn` repaint yellow over yellow, and the warning would be invisible.
+
+Amounts are formatted under `LC_ALL=C`. In a locale where the decimal separator
+is a comma, bash's `printf` rejects `0.0234` outright: it prints `$0,00` and
+writes to stderr. The value arrives from JSON, where the separator is always a
+period, so the formatting has to agree with that regardless of the machine.
 
 ### `rate-forecast`
 
