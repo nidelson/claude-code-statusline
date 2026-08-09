@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "claude-code-statusline",
+  "description": "Statusline for Claude Code with rate-limit forecasting, corporate provider quotas, and workflow health",
+  "version": "0.1.0",
+  "author": {
+    "name": "Nidelson Gimenez",
+    "url": "https://github.com/nidelson"
+  },
+  "homepage": "https://github.com/nidelson/claude-code-statusline",
+  "repository": "https://github.com/nidelson/claude-code-statusline",
+  "license": "MIT",
+  "keywords": ["statusline", "claude-code", "rate-limit", "forecast", "bash"]
+}
