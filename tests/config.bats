@@ -42,6 +42,27 @@ EOF
   [ "$(sl_config_widget_opt rate-forecast window)" = "5h" ]
 }
 
+@test "icons default to enabled when unset" {
+  cat > "$TMPCFG" <<'EOF'
+{"version":1,"lines":[["model"]]}
+EOF
+  sl_config_load "$TMPCFG"
+  [ "$SL_CONFIG_ICONS" = "1" ]
+}
+
+@test "icons can be disabled" {
+  cat > "$TMPCFG" <<'EOF'
+{"version":1,"lines":[["model"]],"icons":false}
+EOF
+  sl_config_load "$TMPCFG"
+  [ "$SL_CONFIG_ICONS" = "0" ]
+}
+
+@test "icons default to enabled when the file is missing" {
+  sl_config_load "$BATS_TEST_TMPDIR/does-not-exist.json"
+  [ "$SL_CONFIG_ICONS" = "1" ]
+}
+
 @test "missing widget option returns empty" {
   cat > "$TMPCFG" <<'EOF'
 {"version":1,"lines":[["model"]]}

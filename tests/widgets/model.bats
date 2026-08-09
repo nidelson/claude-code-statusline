@@ -5,6 +5,7 @@ setup() {
   source "$PROJECT_ROOT/lib/core.sh"
   source "$PROJECT_ROOT/widgets/model.sh"
   SL_MODEL_ID=""
+  SL_CONFIG_ICONS=0
 }
 
 @test "renders the model name" {
@@ -56,4 +57,26 @@ setup() {
   run widget_model_render
   [[ "$output" == *$'\033[35m'* ]]
   [[ "$output" != *$'\033[38;2;217;119;87m'* ]]
+}
+
+@test "shows no icon when icons are disabled" {
+  SL_MODEL="Opus 5"; SL_MODEL_ID="claude-opus-5"
+  SL_CONFIG_ICONS=0
+  run widget_model_render
+  [[ "$output" != *"*"* ]]
+  [ "$output" = "$(printf '\033[38;2;217;119;87mOpus 5\033[0m')" ]
+}
+
+@test "shows the Anthropic glyph when icons are enabled" {
+  SL_MODEL="Opus 5"; SL_MODEL_ID="claude-opus-5"
+  SL_CONFIG_ICONS=1
+  run widget_model_render
+  [[ "$output" == *"✻ Opus 5"* ]]
+}
+
+@test "shows the generic glyph for other providers when icons are enabled" {
+  SL_MODEL="Llama 3"; SL_MODEL_ID="meta-llama-3"
+  SL_CONFIG_ICONS=1
+  run widget_model_render
+  [[ "$output" == *"◆ Llama 3"* ]]
 }

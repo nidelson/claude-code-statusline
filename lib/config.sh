@@ -7,13 +7,16 @@
 SL_CONFIG_DEFAULT_LINES='model git
 rate-forecast'
 SL_CONFIG_DEFAULT_SEP='|'
+# Ícones ligados por padrão. Os glifos usados são Unicode padrão (✻, ◆), não
+# Nerd Font — renderizam em qualquer terminal moderno sem exigir fonte extra.
+SL_CONFIG_DEFAULT_ICONS='1'
 
 sl_config_path() {
   printf '%s/claude-code-statusline/config.json' "${XDG_CONFIG_HOME:-$HOME/.config}"
 }
 
 sl_config_load() {
-  local path="${1:-$(sl_config_path)}" raw lines sep
+  local path="${1:-$(sl_config_path)}" raw lines sep icons
 
   SL_CONFIG_WARN=""
   SL_CONFIG_RAW=""
@@ -21,6 +24,7 @@ sl_config_load() {
   if [ ! -f "$path" ]; then
     SL_CONFIG_LINES="$SL_CONFIG_DEFAULT_LINES"
     SL_CONFIG_SEP="$SL_CONFIG_DEFAULT_SEP"
+    SL_CONFIG_ICONS="$SL_CONFIG_DEFAULT_ICONS"
     return 0
   fi
 
@@ -29,6 +33,7 @@ sl_config_load() {
   if ! printf '%s' "$raw" | jq -e . >/dev/null 2>&1; then
     SL_CONFIG_LINES="$SL_CONFIG_DEFAULT_LINES"
     SL_CONFIG_SEP="$SL_CONFIG_DEFAULT_SEP"
+    SL_CONFIG_ICONS="$SL_CONFIG_DEFAULT_ICONS"
     SL_CONFIG_WARN="config"
     return 0
   fi
@@ -37,6 +42,9 @@ sl_config_load() {
 
   lines="$(printf '%s' "$raw" | jq -r '.lines // [] | .[] | join(" ")' 2>/dev/null)" || lines=""
   sep="$(printf '%s' "$raw" | jq -r '.separator // "|"' 2>/dev/null)" || sep=""
+  # jq devolve "1"/"0" para o booleano; ausente vira o default.
+  icons="$(printf '%s' "$raw" | jq -r 'if .icons == null then empty elif .icons then "1" else "0" end' 2>/dev/null)" || icons=""
+  SL_CONFIG_ICONS="${icons:-$SL_CONFIG_DEFAULT_ICONS}"
 
   if [ -z "$lines" ]; then
     SL_CONFIG_LINES="$SL_CONFIG_DEFAULT_LINES"

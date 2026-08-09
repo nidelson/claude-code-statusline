@@ -11,7 +11,7 @@ register_widget model \
   --desc   "Active model name"
 
 widget_model_render() {
-  local needle
+  local needle icon=""
 
   [ -n "$SL_MODEL" ] || return 0
   # "Unknown" é o fallback do parser quando o campo não veio; mostrar isso na
@@ -22,10 +22,14 @@ widget_model_render() {
   # mas nem todo cliente o envia — daí o fallback.
   needle="$(printf '%s' "${SL_MODEL_ID:-$SL_MODEL}" | tr '[:upper:]' '[:lower:]')"
 
+  # Glifos Unicode padrão, não Nerd Font: renderizam em qualquer terminal
+  # moderno sem exigir instalação de fonte.
   case "$needle" in
     claude*|*anthropic*|*opus*|*sonnet*|*haiku*|*fable*)
-      printf '%s%s%s' "$SL_BRAND" "$SL_MODEL" "$SL_RESET" ;;
+      [ "${SL_CONFIG_ICONS:-1}" = "1" ] && icon='✻ '
+      printf '%s%s%s%s' "$SL_BRAND" "$icon" "$SL_MODEL" "$SL_RESET" ;;
     *)
-      printf '%s%s%s' "$(sl_color magenta)" "$SL_MODEL" "$SL_RESET" ;;
+      [ "${SL_CONFIG_ICONS:-1}" = "1" ] && icon='◆ '
+      printf '%s%s%s%s' "$(sl_color magenta)" "$icon" "$SL_MODEL" "$SL_RESET" ;;
   esac
 }
