@@ -7,6 +7,11 @@
 SL_RESET=$'\033[0m'
 SL_DIM=$'\033[2m'
 
+# Coral da marca Claude (#D97757), em truecolor. Terminais sem suporte a
+# 24 bits ignoram a sequência e caem na cor padrão do texto — degradação
+# aceitável, já que a cor aqui é decorativa e não carrega informação sozinha.
+SL_BRAND=$'\033[38;2;217;119;87m'
+
 sl_color() {
   case "$1" in
     red)     printf '\033[31m' ;;
