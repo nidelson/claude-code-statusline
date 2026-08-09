@@ -30,11 +30,11 @@ work. The second one is harder to surface and easier to forget.
 
 ## Status
 
-v0.1. The widget contract is settled and covered by tests; the widget set is
-deliberately small. Eight widgets ship today — `model`, `git`, `worktree`,
-`context`, `velocity`, `cache`, `cost` and `rate-forecast`. They were chosen
-because each one exercises a different part of the contract: no state, cached
-state, pure arithmetic, and an external process with semantic colours.
+v0.1. The widget contract is settled and covered by tests. Nine widgets ship
+today — `model`, `repo`, `git`, `worktree`, `context`, `velocity`, `cache`,
+`cost` and `rate-forecast` — each exercising a different part of the contract:
+no state, cached state, pure arithmetic, terminal escape sequences, and an
+external process with semantic colours.
 
 ## Requirements
 
@@ -117,6 +117,34 @@ anything else renders in magenta, so a switch to a different provider is visible
 at a glance rather than something you have to read.
 
 Colour is semantic — the `color` option does not apply.
+
+### `repo`
+
+Repository name, wrapped in an OSC 8 hyperlink to its remote so the name is
+clickable.
+
+| Option | Values | Default |
+|---|---|---|
+| `link` | `true`, `false` | `true` |
+| `ttl` | seconds | `300` |
+
+Inside a linked worktree it still shows the **main** repository's name — the
+`worktree` widget is what tells you which worktree you are in. One formula
+covers both cases: the name is `basename(dirname(git-common-dir))`, and the
+common dir points at the main repository's `.git` either way.
+
+Clone URLs are converted to browsable ones: scp-like (`git@host:path`), `ssh://`,
+`git+ssh://`, `http(s)://`, and Azure DevOps SSH — whose web host differs and
+whose path gains a `_git` segment, so it cannot be derived by swapping `:` for
+`/`. Anything else renders as plain text; a wrong link is worse than no link.
+
+Credentials in an `https://` remote are stripped. Without that, a remote with an
+embedded token would become a hyperlink carrying the token, visible in the
+terminal and copied along with the link.
+
+Terminals without OSC 8 support ignore the sequence, so the fallback is the plain
+name with no detection needed. Set `link: false` if yours does something worse
+than ignore it.
 
 ### `git`
 
