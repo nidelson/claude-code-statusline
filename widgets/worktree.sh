@@ -24,35 +24,21 @@ _worktree_compute() {
 }
 
 widget_worktree_render() {
-  local paths gitdir common top key
+  local raw gitdir common top key
 
-  [ -n "$SL_CWD" ] && [ -d "$SL_CWD" ] || return 0
+  # A resolução dos caminhos, com todas as suas sutilezas, vive em lib/gitdir.sh
+  # e é compartilhada com os widgets repo e branch.
+  raw="$(sl_git_paths)"
+  [ -n "$raw" ] || return 0
 
-  # Uma chamada só devolve os três caminhos, um por linha.
-  paths="$(git -C "$SL_CWD" --no-optional-locks \
-           rev-parse --absolute-git-dir --git-common-dir --show-toplevel 2>/dev/null)" || return 0
+  IFS=$'\t' read -r gitdir common top <<EOF
+$raw
+EOF
 
-  gitdir="$(printf '%s\n' "$paths" | sed -n 1p)"
-  common="$(printf '%s\n' "$paths" | sed -n 2p)"
-  top="$(printf '%s\n' "$paths" | sed -n 3p)"
+  [ -n "$top" ] || return 0
 
-  [ -n "$gitdir" ] && [ -n "$common" ] && [ -n "$top" ] || return 0
-
-  # --git-common-dir pode voltar relativo (".git") quando o cwd é a raiz do repo
-  # principal; nesse caso os dois nunca seriam iguais na comparação textual.
-  # Resolver para absoluto evita falso positivo de "é worktree".
-  #
-  # `pwd -P` (físico) e não `pwd`: --absolute-git-dir já resolve symlinks, e no
-  # macOS o diretório temporário fica sob /var, que é symlink para /private/var.
-  # Com o caminho lógico os dois lados nunca coincidiriam e toda árvore
-  # principal seria classificada como worktree.
-  case "$common" in
-    /*) ;;
-    *) common="$(cd "$SL_CWD" && cd "$common" 2>/dev/null && pwd -P)" || return 0 ;;
-  esac
-
-  # Mesmo git-dir e common-dir: árvore principal, nada a mostrar.
-  [ "$gitdir" != "$common" ] || return 0
+  # Árvore principal: nada a mostrar.
+  sl_git_is_worktree "$gitdir" "$common" || return 0
 
   key="worktree-$(printf '%s' "$gitdir" | cksum | cut -d' ' -f1)"
   cache_by_mtime "$key" "$gitdir/HEAD" _worktree_compute "$top"

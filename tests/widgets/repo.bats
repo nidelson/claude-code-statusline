@@ -5,6 +5,7 @@ setup() {
   source "$PROJECT_ROOT/lib/colors.sh"
   source "$PROJECT_ROOT/lib/core.sh"
   source "$PROJECT_ROOT/lib/cache.sh"
+  source "$PROJECT_ROOT/lib/gitdir.sh"
   source "$PROJECT_ROOT/lib/config.sh"
   source "$PROJECT_ROOT/widgets/repo.sh"
   SL_CONFIG_RAW=""

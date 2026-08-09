@@ -30,11 +30,11 @@ work. The second one is harder to surface and easier to forget.
 
 ## Status
 
-v0.1. The widget contract is settled and covered by tests. Nine widgets ship
-today — `model`, `repo`, `git`, `worktree`, `context`, `velocity`, `cache`,
-`cost` and `rate-forecast` — each exercising a different part of the contract:
-no state, cached state, pure arithmetic, terminal escape sequences, and an
-external process with semantic colours.
+v0.1. The widget contract is settled and covered by tests. Ten widgets ship
+today — `model`, `repo`, `branch`, `git`, `worktree`, `context`, `velocity`,
+`cache`, `cost` and `rate-forecast` — each exercising a different part of the
+contract: no state, cached state, pure arithmetic, terminal escape sequences,
+and an external process with semantic colours.
 
 ## Requirements
 
@@ -145,6 +145,23 @@ terminal and copied along with the link.
 Terminals without OSC 8 support ignore the sequence, so the fallback is the plain
 name with no detection needed. Set `link: false` if yours does something worse
 than ignore it.
+
+### `branch`
+
+The current branch on its own, for when you want the branch and the working-tree
+state in different places or different colours. On a detached HEAD it shows the
+short sha prefixed with `@`.
+
+Where `git` combines both, this splits them — use one or the other, not both.
+
+Its cache watches `.git/HEAD`, and that is the right sentinel here for the same
+reason it was the wrong one for the dirty count: `HEAD` holds
+`ref: refs/heads/<branch>` and is rewritten on checkout, but not on commit. Its
+mtime changes exactly when the branch changes.
+
+`mtime` has one-second resolution, so switching branches and repainting inside
+the same second can still show the previous branch. The statusline repaints every
+few seconds anyway.
 
 ### `git`
 
@@ -375,6 +392,22 @@ cache_by_ttl   <key> <seconds>      <command...>    # invalidated by time
 
 Use them for anything that spawns a process. The statusline repaints often
 enough that an uncached subprocess is felt.
+
+### Locating the repository
+
+```bash
+raw="$(sl_git_paths)"           # "gitdir<TAB>commondir<TAB>toplevel", or nothing
+IFS=$'\t' read -r gitdir common top <<EOF
+$raw
+EOF
+sl_git_is_worktree "$gitdir" "$common" && echo "linked worktree"
+```
+
+Resolved once per directory and cached, so several git-aware widgets on the same
+line cost one lookup between them. Use it instead of calling `git rev-parse`
+yourself — it already handles the two things that are easy to get wrong:
+`--git-common-dir` coming back relative, and macOS resolving `/var` through a
+symlink, which otherwise makes every main working tree look like a worktree.
 
 ## The statusline never disappears
 

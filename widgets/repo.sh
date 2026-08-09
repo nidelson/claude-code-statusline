@@ -93,25 +93,19 @@ _repo_compute() {
   printf '%s\t%s' "$name" "$url"
 }
 
-# Resolve onde estamos antes de calcular. Separado para que o rev-parse também
-# caia dentro do cache — é ele o spawn que rodaria a cada repaint se ficasse do
-# lado de fora.
+# Resolve onde estamos antes de calcular. Separado para que a descoberta dos
+# caminhos também caia dentro do cache deste widget.
 _repo_resolve() {
-  local paths common
+  local raw gitdir common top
 
-  paths="$(git -C "$SL_CWD" --no-optional-locks \
-           rev-parse --absolute-git-dir --git-common-dir 2>/dev/null)" || return 0
+  raw="$(sl_git_paths)"
+  [ -n "$raw" ] || return 0
 
-  common="$(printf '%s\n' "$paths" | sed -n 2p)"
+  IFS=$'\t' read -r gitdir common top <<EOF
+$raw
+EOF
+
   [ -n "$common" ] || return 0
-
-  # --git-common-dir pode voltar relativo (".git") quando o cwd é a raiz do repo
-  # principal. `pwd -P` para casar com o caminho físico, como em worktree.sh.
-  case "$common" in
-    /*) ;;
-    *) common="$(cd "$SL_CWD" && cd "$common" 2>/dev/null && pwd -P)" || return 0 ;;
-  esac
-
   _repo_compute "$common"
 }
 
