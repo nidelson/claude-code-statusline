@@ -7,6 +7,7 @@ SL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 . "$SL_ROOT/lib/colors.sh"
 . "$SL_ROOT/lib/core.sh"
+. "$SL_ROOT/lib/cache.sh"
 . "$SL_ROOT/lib/stdin.sh"
 . "$SL_ROOT/lib/config.sh"
 
