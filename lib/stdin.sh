@@ -19,8 +19,15 @@ sl_parse_stdin() {
     @sh "SL_INPUT_TOKENS=\(.input_tokens // 0)",
     @sh "SL_CTX_SIZE=\(.context_window.context_window_size // 0)",
     @sh "SL_CTX_USED=\(.context_window.total_input_tokens // 0)",
-    @sh "SL_5H_PCT=\(.rate_limits.five_hour.used_percentage // "")",
-    @sh "SL_7D_PCT=\(.rate_limits.seven_day.used_percentage // "")",
+    # A API manda os percentuais como float, e o binário morde: o que chega é
+    # 55.00000000000001, não 55. Arredondar aqui, e não em cada widget, é o que
+    # garante que todo consumidor veja o mesmo número — inclusive o helper de
+    # previsão, que recebe o percentual como argumento.
+    #
+    # O `if type=="number"` protege o campo ausente: `// ""` já resolveu para
+    # string vazia, e `round` em string é erro que derruba a passada inteira.
+    @sh "SL_5H_PCT=\(.rate_limits.five_hour.used_percentage // "" | if type == "number" then round else . end)",
+    @sh "SL_7D_PCT=\(.rate_limits.seven_day.used_percentage // "" | if type == "number" then round else . end)",
     @sh "SL_5H_RESET=\(.rate_limits.five_hour.resets_at // "")",
     @sh "SL_7D_RESET=\(.rate_limits.seven_day.resets_at // "")"
   ' 2>/dev/null)" || assignments=""
