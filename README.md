@@ -31,9 +31,9 @@ work. The second one is harder to surface and easier to forget.
 ## Status
 
 v0.1. The widget contract is settled and covered by tests; the widget set is
-deliberately small. Six widgets ship today — `model`, `git`, `worktree`,
-`context`, `cost` and `rate-forecast`. They were chosen because each one
-exercises a different part of the contract: no state, cached state, pure
+deliberately small. Seven widgets ship today — `model`, `git`, `worktree`,
+`context`, `velocity`, `cost` and `rate-forecast`. They were chosen because each
+one exercises a different part of the contract: no state, cached state, pure
 arithmetic, and an external process with semantic colours.
 
 ## Requirements
@@ -164,6 +164,19 @@ real context by roughly 9%.
 A window can be overrun by a single large exchange. The percentage then reads
 past 100 — that is real information — but the bar stops at its configured width,
 because a bar that outgrows its own track pushes the rest of the line sideways.
+
+Colour is semantic — the `color` option does not apply.
+
+### `velocity`
+
+Lines added and removed this session: `+10 -2`, green and red.
+
+Each half only appears when it has a value, and the widget disappears entirely
+when nothing changed. The original always printed `+0 -0`, which in a session
+spent reading code is permanent noise — space spent to say nothing happened.
+
+Counts are exact, never abbreviated. `+1.2k` would hide the difference between
+1200 and 1249, and unlike tokens, that difference matters here.
 
 Colour is semantic — the `color` option does not apply.
 
