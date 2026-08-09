@@ -104,3 +104,26 @@ JSON
   sl_config_load "$BATS_TEST_TMPDIR/config.json"
   [ "$(sl_config_widget_opt git ttl)" = "" ]
 }
+
+@test "an absent option falls back to the given default" {
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'JSON'
+{"version":1,"lines":[["cache"]]}
+JSON
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  [ "$(sl_config_widget_opt cache label "cache:")" = "cache:" ]
+}
+
+@test "an explicitly empty option beats the default" {
+  # bash não distingue "ausente" de "presente e vazio" — as duas chegariam
+  # como "". Quem decide é o teste contra null, dentro do jq.
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'JSON'
+{"version":1,"lines":[["cache"]],"widgets":{"cache":{"label":""}}}
+JSON
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  [ "$(sl_config_widget_opt cache label "cache:")" = "" ]
+}
+
+@test "the default applies with no config file at all" {
+  sl_config_load "$BATS_TEST_TMPDIR/absent.json"
+  [ "$(sl_config_widget_opt cache label "cache:")" = "cache:" ]
+}

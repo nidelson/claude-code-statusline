@@ -50,3 +50,23 @@ setup() {
   sl_parse_stdin 'isto nao e json'
   [ "$SL_JQ_OK" = "0" ]
 }
+
+@test "reads cache tokens from current_usage" {
+  # Os campos de cache vivem em .context_window.current_usage, não na raiz.
+  sl_parse_stdin '{"context_window":{"current_usage":{"input_tokens":100,"cache_creation_input_tokens":200,"cache_read_input_tokens":700}}}'
+  [ "$SL_CACHE_READ" = "700" ]
+  [ "$SL_CACHE_CREATE" = "200" ]
+  [ "$SL_INPUT_TOKENS" = "100" ]
+}
+
+@test "cache tokens default to zero when current_usage is null" {
+  # current_usage é null entre trocas — documentado no statusline.sh original.
+  sl_parse_stdin '{"context_window":{"context_window_size":200000,"current_usage":null}}'
+  [ "$SL_CACHE_READ" = "0" ]
+  [ "$SL_INPUT_TOKENS" = "0" ]
+}
+
+@test "still reads cache tokens from the root as a fallback" {
+  sl_parse_stdin '{"cache_read_input_tokens":42}'
+  [ "$SL_CACHE_READ" = "42" ]
+}

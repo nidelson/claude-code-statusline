@@ -31,10 +31,10 @@ work. The second one is harder to surface and easier to forget.
 ## Status
 
 v0.1. The widget contract is settled and covered by tests; the widget set is
-deliberately small. Seven widgets ship today — `model`, `git`, `worktree`,
-`context`, `velocity`, `cost` and `rate-forecast`. They were chosen because each
-one exercises a different part of the contract: no state, cached state, pure
-arithmetic, and an external process with semantic colours.
+deliberately small. Eight widgets ship today — `model`, `git`, `worktree`,
+`context`, `velocity`, `cache`, `cost` and `rate-forecast`. They were chosen
+because each one exercises a different part of the contract: no state, cached
+state, pure arithmetic, and an external process with semantic colours.
 
 ## Requirements
 
@@ -180,6 +180,32 @@ Counts are exact, never abbreviated. `+1.2k` would hide the difference between
 
 Colour is semantic — the `color` option does not apply.
 
+### `cache`
+
+Prompt cache hit rate: `cache:70%`. Green from 70%, yellow from 30%, red below.
+
+| Option | Values | Default |
+|---|---|---|
+| `label` | prefix text; `""` removes it | `cache:` |
+
+The rate is cache reads over the sum of cache reads, cache writes and fresh
+input tokens. High means a warm cache and a cheap exchange; low means a cold
+cache, the start of a session, or something having invalidated the prefix.
+
+**This is a speedometer, not an odometer.** The counters come from
+`current_usage`, which describes only the most recent exchange, so the number
+moves every turn by design.
+
+It renders nothing when all three counters are zero. A hit rate over zero tokens
+is not 0%, it is undefined — printing `0%` would claim the cache missed when
+nothing was asked of it.
+
+The prefix is text rather than a glyph because `context`, `rate-forecast` and
+this widget can share a line and all end in `%`. Text needs no font installed and
+has a predictable width. Shorten it with `label` when space is tight.
+
+Colour is semantic — the `color` option does not apply.
+
 ### `cost`
 
 Accumulated session cost: `$3.50`.
@@ -265,6 +291,22 @@ sourced, so an unused widget costs nothing.
 | `--self-color` | no | The widget colours itself and the core leaves it alone. Use when colour carries information rather than preference. |
 | `--desc TEXT` | no | One-line description. |
 
+### Reading user options
+
+```bash
+sl_config_widget_opt <widget> <key> [default]
+```
+
+Returns the value from `widgets.<widget>.<key>` in the user's config, as a
+string — numbers and booleans included, so `"tokens": false` comes back as the
+string `false`.
+
+Pass a default when you have one. It is applied inside `jq`, against the key
+being absent — not in bash afterwards. That distinction matters: bash cannot tell
+an absent key from a key set to `""`, so a bash-side fallback would quietly
+override a deliberate empty value and make options like `"label": ""`
+impossible.
+
 ### Rules
 
 **Print nothing when you have nothing.** Empty output makes the widget vanish
@@ -288,8 +330,8 @@ Parsed from the session JSON in a single `jq` pass before any widget runs.
 | `SL_COST` | Session cost in USD |
 | `SL_LINES_ADDED`, `SL_LINES_REMOVED` | Lines changed this session |
 | `SL_CTX_SIZE`, `SL_CTX_USED` | Context window size and tokens used |
-| `SL_INPUT_TOKENS` | Input tokens |
-| `SL_CACHE_READ`, `SL_CACHE_CREATE` | Prompt cache read and creation tokens |
+| `SL_INPUT_TOKENS` | Fresh input tokens, **last exchange only** |
+| `SL_CACHE_READ`, `SL_CACHE_CREATE` | Prompt cache read and creation tokens, **last exchange only** |
 | `SL_5H_PCT`, `SL_5H_RESET` | Five-hour window: percentage used, reset epoch |
 | `SL_7D_PCT`, `SL_7D_RESET` | Seven-day window: percentage used, reset epoch |
 | `SL_JQ_OK` | `1` when the session JSON parsed, `0` otherwise |

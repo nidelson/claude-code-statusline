@@ -14,9 +14,12 @@ sl_parse_stdin() {
     @sh "SL_LINES_ADDED=\(.cost.total_lines_added // 0)",
     @sh "SL_LINES_REMOVED=\(.cost.total_lines_removed // 0)",
     @sh "SL_CWD=\(.workspace.current_dir // .cwd // "")",
-    @sh "SL_CACHE_READ=\(.cache_read_input_tokens // 0)",
-    @sh "SL_CACHE_CREATE=\(.cache_creation_input_tokens // 0)",
-    @sh "SL_INPUT_TOKENS=\(.input_tokens // 0)",
+    # Os contadores de cache vivem em .context_window.current_usage, que pode
+    # ser null entre trocas. O fallback para a raiz cobre clientes que mandem os
+    # campos achatados; o `// 0` final cobre o null.
+    @sh "SL_CACHE_READ=\(.context_window.current_usage.cache_read_input_tokens // .cache_read_input_tokens // 0)",
+    @sh "SL_CACHE_CREATE=\(.context_window.current_usage.cache_creation_input_tokens // .cache_creation_input_tokens // 0)",
+    @sh "SL_INPUT_TOKENS=\(.context_window.current_usage.input_tokens // .input_tokens // 0)",
     @sh "SL_CTX_SIZE=\(.context_window.context_window_size // 0)",
     @sh "SL_CTX_USED=\(.context_window.total_input_tokens // 0)",
     # A API manda os percentuais como float, e o binário morde: o que chega é

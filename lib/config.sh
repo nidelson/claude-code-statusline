@@ -62,10 +62,19 @@ sl_config_load() {
 # vazio — indistinguível de "o usuário não configurou nada", e a opção nunca
 # poderia ser desligada. O teste explícito contra null preserva o false, e o
 # tostring devolve números e booleanos como string, que é o que o bash consome.
+#
+# O terceiro argumento é o default, e existe porque bash não distingue "chave
+# ausente" de "chave presente com string vazia" — as duas chegariam como "". Sem
+# ele, um widget que queira permitir `"label": ""` para esconder o rótulo não
+# teria como: o fallback do próprio widget reporia o default. Passando o default
+# para dentro do jq, quem decide é o teste contra null, que enxerga a diferença.
 sl_config_widget_opt() {
-  local widget="$1" key="$2" value
-  [ -n "$SL_CONFIG_RAW" ] || return 0
-  value="$(printf '%s' "$SL_CONFIG_RAW" | jq -r --arg w "$widget" --arg k "$key" \
-    '.widgets[$w][$k] | if . == null then empty else tostring end' 2>/dev/null)" || value=""
+  local widget="$1" key="$2" default="$3" value
+  if [ -z "$SL_CONFIG_RAW" ]; then
+    printf '%s' "$default"
+    return 0
+  fi
+  value="$(printf '%s' "$SL_CONFIG_RAW" | jq -r --arg w "$widget" --arg k "$key" --arg d "$default" \
+    '.widgets[$w][$k] | if . == null then $d else tostring end' 2>/dev/null)" || value="$default"
   printf '%s' "$value"
 }
