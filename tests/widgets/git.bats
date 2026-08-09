@@ -4,6 +4,7 @@ setup() {
   export SL_CACHE_DIR="$BATS_TEST_TMPDIR/cache"
   source "$PROJECT_ROOT/lib/core.sh"
   source "$PROJECT_ROOT/lib/cache.sh"
+  source "$PROJECT_ROOT/lib/config.sh"
   source "$PROJECT_ROOT/widgets/git.sh"
   REPO="$BATS_TEST_TMPDIR/repo"
   mkdir -p "$REPO"
@@ -54,6 +55,36 @@ setup() {
   sl_widget_registered git
 }
 
+@test "refreshes the dirty count when the cache expires" {
+  # Editar um arquivo não toca em nada dentro de .git — nem em HEAD, nem no
+  # index. Um cache invalidado por mtime de arquivo do git nunca percebe a
+  # mudança, e o contador congela para sempre.
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'EOF'
+{"version":1,"lines":[["git"]],"widgets":{"git":{"ttl":0}}}
+EOF
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  SL_CWD="$REPO"
+  widget_git_render >/dev/null
+  printf 'changed' > "$REPO/a.txt"
+  run widget_git_render
+  [[ "$output" == *"●1"* ]]
+}
+
+@test "refreshes the branch after a commit" {
+  # .git/HEAD guarda "ref: refs/heads/<branch>" e só é reescrito no checkout.
+  # O commit mexe em refs/heads/<branch>, não em HEAD.
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'EOF'
+{"version":1,"lines":[["git"]],"widgets":{"git":{"ttl":0}}}
+EOF
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  SL_CWD="$REPO"
+  printf 'changed' > "$REPO/a.txt"
+  widget_git_render >/dev/null
+  git -C "$REPO" commit -qam second
+  run widget_git_render
+  [[ "$output" != *"●"* ]]
+}
+
 @test "shows the branch inside a linked worktree" {
   WT="$BATS_TEST_TMPDIR/wt"
   git -C "$REPO" worktree add -q -b probe "$WT"
@@ -79,7 +110,21 @@ setup() {
   [ "$(find "$SL_CACHE_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')" -gt 0 ]
 }
 
+@test "renders nothing on a detached HEAD" {
+  SL_CWD="$REPO"
+  git -C "$REPO" checkout -q --detach
+  run widget_git_render
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
+
 @test "the cached value is reused inside a worktree" {
+  # TTL fixado alto: com o default de 2 s este teste dependeria de as duas
+  # renderizações caberem nessa janela, o que sob carga de CI não é garantido.
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'EOF'
+{"version":1,"lines":[["git"]],"widgets":{"git":{"ttl":3600}}}
+EOF
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
   WT="$BATS_TEST_TMPDIR/wt4"
   git -C "$REPO" worktree add -q -b probe4 "$WT"
   SL_CWD="$WT"

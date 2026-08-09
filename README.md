@@ -121,8 +121,18 @@ Colour is semantic — the `color` option does not apply.
 ### `git`
 
 Current branch, plus a dirty count when the working tree is not clean
-(`feat/v0.1 ●3`). Cached against `HEAD`, so it does not spawn `git` on every
-repaint.
+(`feat/v0.1 ●3`). Renders nothing on a detached HEAD.
+
+| Option | Values | Default |
+|---|---|---|
+| `ttl` | seconds; `0` disables caching | `2` |
+
+The dirty count cannot be invalidated by watching a file. Editing a file touches
+nothing inside `.git` — not `HEAD`, not the index — because the information lives
+in the comparison between the tree and the index, not on disk. So the cache is
+time-based, and `ttl` is the explicit ceiling on how stale the number can be.
+
+Raise it on a large repository, where `git status` costs real time.
 
 ### `worktree`
 
