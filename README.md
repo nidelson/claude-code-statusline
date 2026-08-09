@@ -30,15 +30,19 @@ work. The second one is harder to surface and easier to forget.
 
 ## Status
 
-v0.1. The widget contract is settled and covered by tests. Thirteen widgets ship
+v0.1. The widget contract is settled and covered by tests. Fourteen widgets ship
 today — `model`, `repo`, `branch`, `git`, `git-status`, `worktree`, `context`,
-`velocity`, `cache`, `cost`, `rate-forecast`, `sprint` and `command` — each
+`velocity`, `cache`, `cost`, `rate-forecast`, `sprint`, `flow` and `command` — each
 exercising a different part of the contract: no state, cached state, pure
 arithmetic, terminal escape sequences, and external processes with semantic
 colours.
 
 `command` is the escape hatch: it runs any program and renders its output, so a
 data source the plugin has never heard of needs configuration rather than code.
+
+`flow` is company-specific and ships with its own fetcher. This repository is
+private and intended for CI&T colleagues; the widget is inert everywhere else,
+so nothing breaks if you never configure it.
 
 `git` is `branch` and `git-status` fused into one. Use `git` on its own, or the
 other two — never all three, or the same `git status` runs twice per repaint.
@@ -374,6 +378,43 @@ already the core's input-failure marker, and both can land on the same line. A
 story in review is a queue state, not an error.
 
 Colour is semantic — the `color` option does not apply.
+
+### `flow`
+
+Consumption on the CI&T Flow Platform, with a forecast: `flow:34%→58%`. Green
+below 80% projected, yellow from 80%, red from 100%.
+
+| Option | Values | Default |
+|---|---|---|
+| `metric` | `budget`, `requests` | `budget` |
+| `ttl` | seconds between fetches | `300` |
+| `refresh` | `true`, `false` — whether to fetch at all | `true` |
+| `cache` | path to the fetched JSON | `$XDG_CACHE_HOME/flow-consumption.json` |
+| `bin` | path to the fetcher | `bin/flow-consumption.sh` in this plugin |
+
+This is the corporate-provider widget. Going through a company gateway means a
+quota with its own limit and its own renewal, invisible to the Anthropic rate
+limit, and it belongs on the same line as everything else.
+
+**Fetching and showing are separate, and so are their clocks.**
+`bin/flow-consumption.sh` talks to the network and writes JSON; the widget only
+reads that JSON. A network call on the render path would make the whole
+statusline wait on gateway latency, every repaint.
+
+- The render is invalidated by the JSON's mtime, so a new figure appears the
+  moment a fetch finishes rather than when some timer expires.
+- The fetch is throttled by a marker file, so the API is not hammered.
+
+A single TTL for both would force a choice between showing stale numbers and
+fetching too often.
+
+The marker is written *before* the fetch is launched, not after: two repaints
+landing at nearly the same instant must not become two fetches.
+
+**No token, no noise.** The fetcher needs `ANTHROPIC_AUTH_TOKEN` in the
+environment. Without it, it records `{"ok": false}` and the widget renders
+nothing. A machine with no Flow access sees no error — it sees a statusline
+without that piece.
 
 ### `command`
 
