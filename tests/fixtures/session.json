@@ -1,0 +1,10 @@
+{
+  "model": { "display_name": "Opus 5", "id": "claude-opus-5" },
+  "workspace": { "current_dir": "/tmp" },
+  "cost": { "total_cost_usd": 1.23, "total_lines_added": 10, "total_lines_removed": 2 },
+  "context_window": { "context_window_size": 200000, "total_input_tokens": 45000 },
+  "rate_limits": {
+    "five_hour": { "used_percentage": 42, "resets_at": 1800000000 },
+    "seven_day": { "used_percentage": 13, "resets_at": 1800600000 }
+  }
+}

@@ -96,16 +96,48 @@ sl_render_line() {
   printf '%s' "$line"
 }
 
+# A statusline nunca pode sair vazia. Vazio é indistinguível de "plugin morto",
+# e o usuário não tem como saber a diferença olhando para o terminal. Por isso
+# esta função acumula as linhas em memória em vez de imprimir direto: só depois
+# de saber que nada renderizou é que dá para decidir o que colocar no lugar.
+#
+# Dois sinais distintos, com causas distintas:
+#   ⚠  algo de entrada falhou — stdin ilegível ou config malformada. É erro do
+#      ambiente, não do plugin, e o usuário é quem tem como consertar.
+#   —  tudo renderizou vazio sem erro — apenas nada a dizer
+
 sl_render_all() {
-  local widgets out first=1
+  local widgets out all="" first=1 mark=""
+
+  if [ "${SL_JQ_OK:-1}" != "1" ] || [ -n "$SL_CONFIG_WARN" ]; then
+    mark="$(sl_color yellow)⚠$SL_RESET"
+  fi
+
   while IFS= read -r widgets; do
     [ -n "$widgets" ] || continue
     out="$(sl_render_line $widgets)"
     [ -n "$out" ] || continue
-    if [ "$first" = "1" ]; then first=0; else printf '\n'; fi
-    printf '%s' "$out"
+    if [ "$first" = "1" ]; then
+      first=0
+      # O marcador entra na primeira linha que de fato tem conteúdo, não em uma
+      # linha própria: ele qualifica o que está sendo mostrado.
+      if [ -n "$mark" ]; then out="$mark $out"; fi
+      all="$out"
+    else
+      all="$all
+$out"
+    fi
   done <<EOF
 $SL_CONFIG_LINES
 EOF
-  printf '\n'
+
+  if [ -z "$all" ]; then
+    all="$mark"
+    # As chaves em ${SL_DIM} são obrigatórias: o bash 3.2 aceita bytes acima de
+    # 127 como parte de nome de variável, então "$SL_DIM—" vira a variável
+    # `SL_DIM\xE2`, que não existe. Ver widgets/rate-forecast.sh.
+    [ -n "$all" ] || all="${SL_DIM}—${SL_RESET}"
+  fi
+
+  printf '%s\n' "$all"
 }

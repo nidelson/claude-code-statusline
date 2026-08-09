@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats and jq (macOS)
+        if: runner.os == 'macOS'
+        run: brew install bats-core jq
+
+      - name: Install bats and jq (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y bats jq
+
+      - name: Record tool versions
+        run: |
+          bash --version | head -1
+          bats --version
+          jq --version
+
+      - name: Run the test suite
+        run: bats -r tests
+
+      # bats runs the test files under whatever bash comes first in PATH, which
+      # on a GitHub macOS runner is not guaranteed to be the system one. This
+      # step pins /bin/bash — 3.2.57 on every macOS, frozen there since 2006
+      # because bash 4.0 moved to GPLv3 — so a bash 4+ construct sneaking into
+      # the entrypoint or any library fails here instead of on a user's machine.
+      - name: Smoke test under system bash 3.2 (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          /bin/bash --version | head -1
+          out="$(/bin/bash bin/statusline.sh < tests/fixtures/session.json 2>err.log)"
+          printf 'stdout: %s\n' "$out"
+          # A statusline nunca sai com status diferente de zero por contrato, e
+          # erro de sintaxe do bash vai para o stderr sem afetar o status. Sem
+          # checar as duas coisas este passo passaria com o plugin quebrado.
+          if [ -s err.log ]; then
+            echo "FAIL: entrypoint wrote to stderr under bash 3.2"
+            cat err.log
+            exit 1
+          fi
+          case "$out" in
+            *"Opus 5"*) ;;
+            *) echo "FAIL: expected the model name in the output"; exit 1 ;;
+          esac

@@ -54,6 +54,33 @@ setup() {
   [ "$output" = "$(printf '\033[36mA\033[0m')" ]
 }
 
+@test "renders one line per configured line" {
+  SL_JQ_OK=1
+  SL_CONFIG_LINES="a b
+a"
+  run sl_render_all
+  [ "$output" = "A | B
+A" ]
+}
+
+@test "a line that renders empty is dropped entirely" {
+  SL_JQ_OK=1
+  SL_CONFIG_LINES="a
+empty
+a"
+  run sl_render_all
+  [ "$output" = "A
+A" ]
+}
+
+@test "never renders an empty statusline" {
+  # Sair vazio é indistinguível de plugin morto. Sempre sobra um sinal de vida.
+  SL_JQ_OK=1
+  SL_CONFIG_LINES="empty"
+  run sl_render_all
+  [ -n "$output" ]
+}
+
 @test "self-color widget is left untouched by the core" {
   w_self() { printf '\033[31mRED\033[0m'; }
   register_widget selfy --render w_self --color cyan --self-color
