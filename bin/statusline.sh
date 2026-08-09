@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Entrypoint. Reads the Claude Code session JSON on stdin, prints the statusline.
-# Never uses `set -e`: a non-zero return must not blank the user's status line.
+# Entrypoint. Lê o JSON de sessão do Claude Code no stdin e imprime a statusline.
+# Nunca usa `set -e`: um retorno diferente de zero não pode apagar a statusline
+# do usuário.
 
 SL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 

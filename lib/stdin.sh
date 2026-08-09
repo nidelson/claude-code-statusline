@@ -1,8 +1,8 @@
-# Single-pass stdin parser.
+# Parse do stdin em uma única passada.
 #
-# The previous implementation called `jq` fifteen times, once per field, each
-# one a fork. This emits every field in one pass. `@sh` quotes each value so
-# the `eval` is safe with spaces, quotes and newlines in the payload.
+# A implementação anterior chamava `jq` quinze vezes, uma por campo, cada uma
+# um fork. Esta emite todos os campos de uma vez. O `@sh` cuida do quoting, então
+# valores com espaço, aspas ou quebra de linha não quebram o `eval`.
 
 sl_parse_stdin() {
   local json="$1" assignments
@@ -24,13 +24,13 @@ sl_parse_stdin() {
     @sh "SL_5H_RESET=\(.rate_limits.five_hour.resets_at // "")",
     @sh "SL_7D_RESET=\(.rate_limits.seven_day.resets_at // "")"
   ' 2>/dev/null)" || assignments=""
-  # The `|| assignments=""` matters: a command substitution carries the exit
-  # status of the pipeline, so under a caller running `set -e` a jq failure
-  # would abort this function before the fallback below could run.
+  # O `|| assignments=""` importa: command substitution carrega o exit status
+  # do pipeline, então sob um chamador com `set -e` uma falha do jq abortaria
+  # esta função antes de o fallback abaixo rodar.
 
   if [ -z "$assignments" ]; then
-    # Malformed JSON or missing jq. Widgets that need data will render empty;
-    # the status line still prints.
+    # JSON malformado ou jq ausente. Widgets que dependem de dado renderizam
+    # vazio; a statusline continua imprimindo.
     SL_JQ_OK=0
     SL_MODEL="Unknown"; SL_MODEL_ID=""; SL_COST=0
     SL_LINES_ADDED=0; SL_LINES_REMOVED=0; SL_CWD=""

@@ -1,9 +1,9 @@
-# Widget registry.
+# Registro de widgets.
 #
-# bash 3.2 has no associative arrays, so attributes live in variables whose
-# names are derived from the widget name: _W_RENDER_model, _W_COLOR_model.
-# Reads go through `${!var}` indirection, which needs no eval.
-# Hyphens are not legal in variable names, so they become underscores.
+# bash 3.2 não tem arrays associativos, então os atributos moram em variáveis
+# cujo nome deriva do nome do widget: _W_RENDER_model, _W_COLOR_model. A leitura
+# usa indireção `${!var}`, que dispensa eval.
+# Hífen não é legal em nome de variável, então vira underscore.
 
 SL_WIDGET_LIST=""
 
@@ -26,9 +26,9 @@ register_widget() {
     esac
   done
 
-  # A widget with no render function is a programming error in that widget
-  # file. Reject it rather than failing later with an obscure "command not
-  # found" in the middle of a repaint.
+  # Widget sem função de render é erro de programação no arquivo do widget.
+  # Rejeita agora, em vez de falhar depois com um "command not found" obscuro
+  # no meio de um repaint.
   if [ -z "$render" ]; then
     return 1
   fi
