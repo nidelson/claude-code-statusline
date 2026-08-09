@@ -1,57 +1,58 @@
 ---
-description: Install claude-code-statusline into your Claude Code settings
+description: Instala a claude-code-statusline no settings.json
 ---
 
-Set up this plugin as the user's statusline. Work through the steps in order and
-report what you did at the end.
+Configure este plugin como a statusline do usuário. Siga os passos na ordem e
+relate no final o que foi feito.
 
-## Step 1: Locate the entrypoint
+## Passo 1: Localizar o entrypoint
 
-The entrypoint is `${CLAUDE_PLUGIN_ROOT}/bin/statusline.sh`. Confirm it exists.
-Resolve it to an absolute path — `settings.json` cannot expand plugin variables.
+O entrypoint é `${CLAUDE_PLUGIN_ROOT}/bin/statusline.sh`. Confirme que existe e
+resolva para caminho absoluto — o `settings.json` não expande variáveis de
+plugin.
 
-## Step 2: Check dependencies
+## Passo 2: Verificar as dependências
 
-Run `command -v jq` and `command -v git`.
+Rode `command -v jq` e `command -v git`.
 
-- Without `jq`, the statusline still renders but shows almost nothing, because
-  every field comes from parsing the session JSON. Say so and suggest
-  `brew install jq` on macOS or the equivalent package manager elsewhere.
-- Without `git`, only the git-aware widgets go quiet.
+- Sem `jq`, a statusline ainda renderiza mas mostra quase nada, porque
+  praticamente todo campo vem do parse do JSON da sessão. Avise e sugira
+  `brew install jq` no macOS ou o gerenciador de pacotes equivalente.
+- Sem `git`, apenas os widgets que dependem de git ficam em silêncio.
 
-Neither is fatal. Do not abort setup over a missing dependency.
+Nenhuma das duas é fatal. Não aborte a instalação por dependência faltando.
 
-## Step 3: Back up settings.json
+## Passo 3: Fazer backup do settings.json
 
-The file lives at `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json`. Copy it to
-`settings.json.bak.YYYYMMDD-HHMMSS` before touching it.
+O arquivo fica em `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json`. Copie para
+`settings.json.bak.YYYYMMDD-HHMMSS` antes de tocar nele.
 
-**This file is often a symlink managed by a dotfiles repository.** When you write
-it, use `cat new-file > settings.json` — never `mv`. A `mv` replaces the symlink
-with a regular file and silently disconnects the user's dotfiles repo, which they
-will not notice until their next machine.
+**Esse arquivo é frequentemente um symlink gerenciado por um repositório de
+dotfiles.** Ao escrever, use `cat arquivo-novo > settings.json` — nunca `mv`. Um
+`mv` substitui o symlink por um arquivo comum e desconecta silenciosamente o
+repositório de dotfiles do usuário, que só vai perceber na próxima máquina.
 
-## Step 4: Write the statusLine key
+## Passo 4: Escrever a chave statusLine
 
-Merge into the existing JSON, preserving every other key:
+Faça merge no JSON existente, preservando todas as outras chaves:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "bash /absolute/path/to/bin/statusline.sh",
+    "command": "bash /caminho/absoluto/para/bin/statusline.sh",
     "refreshInterval": 5
   }
 }
 ```
 
-If a `statusLine` key already exists, show the user its current value and ask
-before replacing it — they may have a statusline they want to keep.
+Se já existir uma chave `statusLine`, mostre o valor atual ao usuário e pergunte
+antes de substituir — pode ser uma statusline que ele queira manter.
 
-## Step 5: Create the default configuration
+## Passo 5: Criar a configuração padrão
 
-If `${XDG_CONFIG_HOME:-$HOME/.config}/claude-code-statusline/config.json` does
-not exist, create it:
+Se `${XDG_CONFIG_HOME:-$HOME/.config}/claude-code-statusline/config.json` não
+existir, crie:
 
 ```json
 {
@@ -61,17 +62,18 @@ not exist, create it:
 }
 ```
 
-If it already exists, leave it alone.
+Se já existir, não toque nele.
 
-## Step 6: Verify
+## Passo 6: Verificar
 
-Run the entrypoint against the bundled fixture and confirm it prints something:
+Rode o entrypoint contra a fixture do repositório e confirme que imprime algo:
 
 ```bash
-bash /absolute/path/to/bin/statusline.sh < /absolute/path/to/tests/fixtures/session.json
+bash /caminho/absoluto/para/bin/statusline.sh < /caminho/absoluto/para/tests/fixtures/session.json
 ```
 
-A `⚠` in the output means the session JSON could not be parsed — usually a
-missing `jq`. Report it rather than treating the run as a success.
+Um `⚠` na saída significa que a entrada falhou — JSON da sessão ilegível ou
+config malformada, normalmente `jq` faltando. Relate isso em vez de tratar a
+execução como sucesso.
 
-Finally, ask the user to restart Claude Code.
+Por fim, peça ao usuário para reiniciar o Claude Code.
