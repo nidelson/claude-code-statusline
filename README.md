@@ -30,11 +30,14 @@ work. The second one is harder to surface and easier to forget.
 
 ## Status
 
-v0.1. The widget contract is settled and covered by tests. Ten widgets ship
-today — `model`, `repo`, `branch`, `git`, `worktree`, `context`, `velocity`,
-`cache`, `cost` and `rate-forecast` — each exercising a different part of the
-contract: no state, cached state, pure arithmetic, terminal escape sequences,
-and an external process with semantic colours.
+v0.1. The widget contract is settled and covered by tests. Eleven widgets ship
+today — `model`, `repo`, `branch`, `git`, `git-status`, `worktree`, `context`,
+`velocity`, `cache`, `cost` and `rate-forecast` — each exercising a different
+part of the contract: no state, cached state, pure arithmetic, terminal escape
+sequences, and an external process with semantic colours.
+
+`git` is `branch` and `git-status` fused into one. Use `git` on its own, or the
+other two — never all three, or the same `git status` runs twice per repaint.
 
 ## Requirements
 
@@ -178,6 +181,40 @@ in the comparison between the tree and the index, not on disk. So the cache is
 time-based, and `ttl` is the explicit ceiling on how stale the number can be.
 
 Raise it on a large repository, where `git status` costs real time.
+
+### `git-status`
+
+Working-tree state and distance from the upstream: `●3 ↑1 ↓2` — three files
+dirty, one commit the upstream lacks, two commits you lack. Yellow, green, red.
+
+| Option | Values | Default |
+|---|---|---|
+| `ttl` | seconds; `0` disables caching | `2` |
+
+Clean and in sync renders nothing. A "you're fine" indicator would occupy space
+permanently in order to say nothing.
+
+It takes one `git` call, not two. The original used `status --porcelain` for the
+dirty count and `rev-list --left-right --count HEAD...@{upstream}` for the rest,
+but `status --porcelain --branch` puts both numbers in its header:
+
+```
+## main...origin/main [ahead 1, behind 2]
+ M file
+```
+
+Since git's cost is almost entirely process spawn, reading the header halves the
+price for the same information.
+
+The counts are parsed from inside the brackets rather than from the header at
+large, so a branch actually named `ahead` or `behind` cannot be mistaken for
+tracking information. A header with no brackets — no upstream, or an upstream
+that is `[gone]` — simply yields no counts.
+
+Like `git`, it caches by time; see that widget for why no file can serve as a
+sentinel for a dirty tree.
+
+Colour is semantic — the `color` option does not apply.
 
 ### `worktree`
 
