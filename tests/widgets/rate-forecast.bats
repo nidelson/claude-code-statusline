@@ -4,6 +4,7 @@ setup() {
   source "$PROJECT_ROOT/lib/colors.sh"
   source "$PROJECT_ROOT/lib/core.sh"
   source "$PROJECT_ROOT/lib/config.sh"
+  source "$PROJECT_ROOT/lib/timefmt.sh"
   source "$PROJECT_ROOT/widgets/rate-forecast.sh"
   export SL_FORECAST_BIN="$PROJECT_ROOT/tests/fixtures/fake-forecast.sh"
   SL_CONFIG_RAW=""
@@ -151,4 +152,59 @@ EOF
   SL_7D_PCT=""
   run widget_rate_forecast_render
   [ "$output" = "" ]
+}
+
+@test "shows the reset clock and countdown under a day" {
+  export FAKE_FORECAST_OUT="none"
+  SL_NOW=1800000000
+  SL_5H_RESET=1800006480
+  run widget_rate_forecast_render
+  [[ "$output" =~ [0-9]{2}:[0-9]{2}.1h48m ]]
+}
+
+@test "shows the reset weekday and countdown over a day" {
+  export FAKE_FORECAST_OUT="none"
+  SL_NOW=1800000000
+  SL_5H_RESET=1800454000
+  run widget_rate_forecast_render
+  [[ "$output" =~ [A-Za-z]{3}.5d6h ]]
+}
+
+@test "normalizes a reset given in milliseconds" {
+  export FAKE_FORECAST_OUT="none"
+  SL_NOW=1800000000
+  SL_5H_RESET=1800006480000
+  run widget_rate_forecast_render
+  [[ "$output" =~ 1h48m ]]
+}
+
+@test "a reset in the past drops the times but keeps the percentage" {
+  export FAKE_FORECAST_OUT="none"
+  SL_NOW=1800000000
+  SL_5H_RESET=1799999000
+  run widget_rate_forecast_render
+  [[ "$output" == *"42%"* ]]
+  [[ "$output" != *"·"* ]]
+}
+
+@test "an unreadable reset drops the times but keeps the percentage" {
+  export FAKE_FORECAST_OUT="none"
+  SL_NOW=1800000000
+  SL_5H_RESET="banana"
+  run widget_rate_forecast_render
+  [[ "$output" == *"42%"* ]]
+  [[ "$output" != *"·"* ]]
+}
+
+@test "reset false hides the times" {
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'EOF'
+{"version":1,"lines":[["rate-forecast"]],"widgets":{"rate-forecast":{"reset":false}}}
+EOF
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  export FAKE_FORECAST_OUT="none"
+  SL_NOW=1800000000
+  SL_5H_RESET=1800006480
+  run widget_rate_forecast_render
+  [[ "$output" == *"42%"* ]]
+  [[ "$output" != *"1h48m"* ]]
 }

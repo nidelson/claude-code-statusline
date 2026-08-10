@@ -24,6 +24,16 @@ register_widget rate-forecast \
 SL_RF_DEFAULT_WARN=50
 SL_RF_DEFAULT_CRIT=80
 
+# Tempo é entrada, não relógio. Sem isso a suíte falharia sozinha às duas da
+# manhã, ou só no CI, que roda em UTC.
+_rf_now() {
+  if [ -n "$SL_NOW" ]; then
+    printf '%s' "$SL_NOW"
+  else
+    date +%s
+  fi
+}
+
 # A fonte entrega float — a statusline arquivada registra ter recebido
 # 14.000000000000002 — e a comparação inteira do bash aborta a função no meio
 # quando encontra casa decimal. Arredondar antes de comparar não é higiene, é o
@@ -56,7 +66,7 @@ _forecast_window_seconds() {
 
 widget_rate_forecast_render() {
   local window pct reset level proj out color raw
-  local int warn crit ucolor
+  local int warn crit ucolor repoch rlabel show_reset
 
   window="$(sl_config_widget_opt rate-forecast window)"
   [ -n "$window" ] || window="5h"
@@ -105,6 +115,14 @@ widget_rate_forecast_render() {
   # variável `out\xE2` — que não existe, expande vazio e ainda come o primeiro
   # byte da seta, deixando lixo na saída.
   [ -n "$proj" ] && out="${out}${color}→${proj}%${SL_RESET}"
+
+  # Um reset ilegível apaga só a si mesmo: percentual e projeção sobrevivem.
+  show_reset="$(sl_config_widget_opt rate-forecast reset true)"
+  if [ "$show_reset" != "false" ]; then
+    repoch="$(sl_epoch_normalize "$reset")" \
+      && rlabel="$(sl_reset_label "$repoch" "$(_rf_now)")" \
+      && out="${out} ${SL_DIM}${rlabel}${SL_RESET}"
+  fi
 
   printf '%s' "$out"
 }
