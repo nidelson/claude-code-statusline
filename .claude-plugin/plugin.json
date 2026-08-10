@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "claude-code-statusline",
-  "description": "Statusline for Claude Code with rate-limit forecasting, corporate provider quotas, and workflow health",
+  "description": "Statusline para o Claude Code com previsão de estouro de rate limit, quota de provedor corporativo e saúde de sprint",
   "version": "0.1.0",
   "author": {
     "name": "Nidelson Gimenez",

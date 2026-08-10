@@ -1,66 +1,67 @@
 # claude-code-statusline
 
-A statusline for [Claude Code](https://claude.com/claude-code), built out of small
-independent widgets.
+Uma statusline para o [Claude Code](https://claude.com/claude-code), construída a
+partir de widgets pequenos e independentes.
 
 ```
 ✻ Opus 5 | feat/v0.1 ●3
 5h:42%→70%
 ```
 
-## Why another one
+## Por que mais uma
 
-There are good statuslines for Claude Code already. This one exists because of
-three things the others do not do, all of which come from using Claude Code as a
-daily driver rather than as a demo:
+Já existem boas statuslines para o Claude Code. Esta existe por causa de três
+coisas que as outras não fazem, todas nascidas de usar o Claude Code no dia a dia
+e não como demonstração:
 
-**Forecasting, not just reporting.** `5h:42%` tells you where you are. It does
-not tell you whether you will hit the wall before the window resets. The
-`rate-forecast` widget extrapolates from your burn rate and colours the result,
-so `42%→116%` reads as "stop or slow down" three hours before you find out the
-hard way.
+**Previsão, não apenas relato.** `5h:42%` diz onde você está. Não diz se você vai
+bater no teto antes de a janela resetar. O widget `rate-forecast` extrapola a
+partir do seu ritmo de consumo e colore o resultado, de modo que `42%→116%` se lê
+como "pare ou desacelere" três horas antes de você descobrir do jeito difícil.
 
-**Corporate providers.** Plenty of us do not talk to the Anthropic API directly.
-We go through a company gateway with its own quota, its own dashboard and its own
-way of running out. That consumption belongs on the same line as everything else.
+**Provedores corporativos.** Muitos de nós não falamos com a API da Anthropic
+diretamente. Passamos por um gateway da empresa, com quota própria, painel
+próprio e um jeito próprio de acabar. Esse consumo pertence à mesma linha que
+todo o resto.
 
-**Workflow, not just machine state.** Model, branch and token count are facts
-about the process. Whether the current sprint is healthy is a fact about the
-work. The second one is harder to surface and easier to forget.
+**Fluxo de trabalho, não só estado da máquina.** Modelo, branch e contagem de
+tokens são fatos sobre o processo. Se a sprint atual está saudável é um fato
+sobre o trabalho. O segundo é mais difícil de expor e mais fácil de esquecer.
 
 ## Status
 
-v0.1. The widget contract is settled and covered by tests. Fourteen widgets ship
-today — `model`, `repo`, `branch`, `git`, `git-status`, `worktree`, `context`,
-`velocity`, `cache`, `cost`, `rate-forecast`, `sprint`, `flow` and `command` — each
-exercising a different part of the contract: no state, cached state, pure
-arithmetic, terminal escape sequences, and external processes with semantic
-colours.
+v0.1. O contrato de widget está estabelecido e coberto por testes. Quatorze
+widgets estão disponíveis hoje — `model`, `repo`, `branch`, `git`, `git-status`,
+`worktree`, `context`, `velocity`, `cache`, `cost`, `rate-forecast`, `sprint`,
+`flow` e `command` — cada um exercitando uma parte diferente do contrato: sem
+estado, estado em cache, aritmética pura, sequências de escape de terminal e
+processos externos com cores semânticas.
 
-`command` is the escape hatch: it runs any program and renders its output, so a
-data source the plugin has never heard of needs configuration rather than code.
+O `command` é a válvula de escape: ele roda qualquer programa e renderiza a
+saída, de modo que uma fonte de dados da qual o plugin nunca ouviu falar exige
+configuração em vez de código.
 
-`flow` is company-specific and ships with its own fetcher. This repository is
-private and intended for CI&T colleagues; the widget is inert everywhere else,
-so nothing breaks if you never configure it.
+O `flow` é específico da empresa e vem com o próprio fetcher. Este repositório é
+privado e destinado a colegas da CI&T; o widget é inerte em qualquer outro lugar,
+então nada quebra se você nunca o configurar.
 
-`git` is `branch` and `git-status` fused into one. Use `git` on its own, or the
-other two — never all three, or the same `git status` runs twice per repaint.
+O `git` é o `branch` e o `git-status` fundidos em um. Use o `git` sozinho, ou os
+outros dois — nunca os três, ou o mesmo `git status` roda duas vezes por repaint.
 
-## Requirements
+## Requisitos
 
 | | |
 |---|---|
-| `bash` | 3.2 or newer |
-| `jq` | required in practice — nearly every field comes from parsing the session JSON |
-| `git` | optional; only the git-aware widgets need it |
+| `bash` | 3.2 ou mais recente |
+| `jq` | obrigatório na prática — quase todo campo vem do parse do JSON da sessão |
+| `git` | opcional; só os widgets que conhecem git precisam dele |
 
-Bash 3.2 is not a typo. macOS still ships `/bin/bash` 3.2.57 and always will:
-bash 4.0 moved to GPLv3, which Apple does not distribute. Targeting 3.2 means the
-plugin works on a stock Mac with no `brew install` step. Everything here runs
-unchanged on bash 5.
+Bash 3.2 não é erro de digitação. O macOS ainda entrega `/bin/bash` 3.2.57 e
+sempre vai entregar: o bash 4.0 migrou para a GPLv3, que a Apple não distribui.
+Mirar no 3.2 significa que o plugin funciona num Mac de fábrica, sem passo de
+`brew install`. Tudo aqui roda sem alteração no bash 5.
 
-## Install
+## Instalação
 
 ```
 /plugin marketplace add nidelson/claude-code-statusline
@@ -68,22 +69,23 @@ unchanged on bash 5.
 /claude-code-statusline:setup
 ```
 
-The setup command backs up `settings.json`, writes the `statusLine` key, and
-creates a default config if you do not have one. Restart Claude Code afterwards.
+O comando de setup faz backup do `settings.json`, escreve a chave `statusLine` e
+cria uma configuração padrão caso você não tenha uma. Reinicie o Claude Code
+depois.
 
-To wire it by hand, point `statusLine.command` at `bin/statusline.sh`:
+Para ligar na mão, aponte `statusLine.command` para o `bin/statusline.sh`:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "bash /path/to/claude-code-statusline/bin/statusline.sh",
+    "command": "bash /caminho/para/claude-code-statusline/bin/statusline.sh",
     "refreshInterval": 5
   }
 }
 ```
 
-## Configuration
+## Configuração
 
 `${XDG_CONFIG_HOME:-$HOME/.config}/claude-code-statusline/config.json`:
 
@@ -100,328 +102,371 @@ To wire it by hand, point `statusLine.command` at `bin/statusline.sh`:
 }
 ```
 
-| Key | Type | Default | Meaning |
+| Chave | Tipo | Padrão | Significado |
 |---|---|---|---|
-| `version` | number | — | Config format version. Reserved; not yet enforced. |
-| `lines` | array of arrays | `[["model","git"],["rate-forecast"]]` | One inner array per rendered line, listing widgets left to right. |
-| `separator` | string | `\|` | Placed between widgets on a line, padded with spaces. |
-| `icons` | boolean | `true` | Turns widget glyphs on or off. The glyphs are plain Unicode (`✻`, `◆`), not Nerd Font — no extra font needed. |
-| `widgets` | object | `{}` | Per-widget options, keyed by widget name. |
+| `version` | número | — | Versão do formato de configuração. Reservado; ainda não é validado. |
+| `lines` | lista de listas | `[["model","git"],["rate-forecast"]]` | Uma lista interna por linha renderizada, com os widgets da esquerda para a direita. |
+| `separator` | string | `\|` | Colocado entre os widgets de uma linha, cercado de espaços. |
+| `icons` | booleano | `true` | Liga ou desliga os glifos dos widgets. Os glifos são Unicode comum (`✻`, `◆`), não Nerd Font — nenhuma fonte extra necessária. |
+| `widgets` | objeto | `{}` | Opções por widget, indexadas pelo nome do widget. |
 
-Every widget accepts a `color` option: `red`, `green`, `yellow`, `blue`,
-`magenta`, `cyan`, `dim`. It is ignored by widgets whose colour is semantic —
-see `--self-color` below.
+Todo widget aceita a opção `color`: `red`, `green`, `yellow`, `blue`, `magenta`,
+`cyan`, `dim`. Ela é ignorada pelos widgets cuja cor é semântica — veja
+`--self-color` abaixo.
 
-A widget name the plugin does not recognise is skipped silently, so a config
-written for a newer version still works on an older one.
+Um nome de widget que o plugin não reconhece é ignorado em silêncio, de modo que
+uma configuração escrita para uma versão mais nova continua funcionando numa mais
+antiga.
 
-**A malformed config is never rewritten.** The plugin falls back to defaults in
-memory, shows a `⚠`, and leaves your file exactly as you left it so you can fix
-it.
+**Uma configuração malformada nunca é reescrita.** O plugin cai nos padrões em
+memória, mostra um `⚠` e deixa o seu arquivo exatamente como você o deixou, para
+que você possa corrigi-lo.
 
 ## Widgets
 
 ### `model`
 
-The active model. Anthropic models render in the Claude brand coral (`#D97757`);
-anything else renders in magenta, so a switch to a different provider is visible
-at a glance rather than something you have to read.
+O modelo ativo. Modelos da Anthropic renderizam no coral da marca Claude
+(`#D97757`); qualquer outro renderiza em magenta, de modo que a troca para um
+provedor diferente é visível de relance, em vez de ser algo que você precisa ler.
 
-Colour is semantic — the `color` option does not apply.
+A cor é semântica — a opção `color` não se aplica.
 
 ### `repo`
 
-Repository name, wrapped in an OSC 8 hyperlink to its remote so the name is
-clickable.
+Nome do repositório, embrulhado num hyperlink OSC 8 para o remoto, de modo que o
+nome é clicável.
 
-| Option | Values | Default |
+| Opção | Valores | Padrão |
 |---|---|---|
 | `link` | `true`, `false` | `true` |
-| `ttl` | seconds | `300` |
+| `ttl` | segundos | `300` |
 
-Inside a linked worktree it still shows the **main** repository's name — the
-`worktree` widget is what tells you which worktree you are in. One formula
-covers both cases: the name is `basename(dirname(git-common-dir))`, and the
-common dir points at the main repository's `.git` either way.
+Dentro de um worktree linkado ele ainda mostra o nome do repositório
+**principal** — o widget `worktree` é o que diz em qual worktree você está. Uma
+fórmula cobre os dois casos: o nome é `basename(dirname(git-common-dir))`, e o
+diretório comum aponta para o `.git` do repositório principal de qualquer forma.
 
-Clone URLs are converted to browsable ones: scp-like (`git@host:path`), `ssh://`,
-`git+ssh://`, `http(s)://`, and Azure DevOps SSH — whose web host differs and
-whose path gains a `_git` segment, so it cannot be derived by swapping `:` for
-`/`. Anything else renders as plain text; a wrong link is worse than no link.
+URLs de clone são convertidas em navegáveis: estilo scp (`git@host:caminho`),
+`ssh://`, `git+ssh://`, `http(s)://` e Azure DevOps por SSH — cujo host web é
+diferente e cujo caminho ganha um segmento `_git`, e por isso não pode ser
+derivado trocando `:` por `/`. Qualquer outra coisa renderiza como texto puro; um
+link errado é pior que link nenhum.
 
-Credentials in an `https://` remote are stripped. Without that, a remote with an
-embedded token would become a hyperlink carrying the token, visible in the
-terminal and copied along with the link.
+Credenciais num remoto `https://` são removidas. Sem isso, um remoto com token
+embutido viraria um hyperlink carregando o token, visível no terminal e copiado
+junto com o link.
 
-Terminals without OSC 8 support ignore the sequence, so the fallback is the plain
-name with no detection needed. Set `link: false` if yours does something worse
-than ignore it.
+Terminais sem suporte a OSC 8 ignoram a sequência, então o fallback é o nome puro
+sem necessidade de detecção. Defina `link: false` se o seu fizer algo pior que
+ignorar.
 
 ### `branch`
 
-The current branch on its own, for when you want the branch and the working-tree
-state in different places or different colours. On a detached HEAD it shows the
-short sha prefixed with `@`.
+A branch atual sozinha, para quando você quer a branch e o estado da árvore de
+trabalho em lugares ou cores diferentes. Num HEAD destacado, mostra o sha curto
+prefixado com `@`.
 
-Where `git` combines both, this splits them — use one or the other, not both.
+Onde o `git` combina os dois, este separa — use um ou outro, nunca ambos.
 
-Its cache watches `.git/HEAD`, and that is the right sentinel here for the same
-reason it was the wrong one for the dirty count: `HEAD` holds
-`ref: refs/heads/<branch>` and is rewritten on checkout, but not on commit. Its
-mtime changes exactly when the branch changes.
+O cache dele observa o `.git/HEAD`, e essa é a sentinela certa aqui pelo mesmo
+motivo que era a errada para o contador de sujeira: o `HEAD` guarda
+`ref: refs/heads/<branch>` e é reescrito no checkout, mas não no commit. O mtime
+dele muda exatamente quando a branch muda.
 
-`mtime` has one-second resolution, so switching branches and repainting inside
-the same second can still show the previous branch. The statusline repaints every
-few seconds anyway.
+O `mtime` tem resolução de um segundo, então trocar de branch e repintar dentro
+do mesmo segundo ainda pode mostrar a branch anterior. A statusline repinta a
+cada poucos segundos de qualquer forma.
 
 ### `git`
 
-Current branch, plus a dirty count when the working tree is not clean
-(`feat/v0.1 ●3`). Renders nothing on a detached HEAD.
+Branch atual, mais um contador de sujeira quando a árvore de trabalho não está
+limpa (`feat/v0.1 ●3`). Não renderiza nada num HEAD destacado.
 
-| Option | Values | Default |
+| Opção | Valores | Padrão |
 |---|---|---|
-| `ttl` | seconds; `0` disables caching | `2` |
+| `ttl` | segundos; `0` desliga o cache | `2` |
 
-The dirty count cannot be invalidated by watching a file. Editing a file touches
-nothing inside `.git` — not `HEAD`, not the index — because the information lives
-in the comparison between the tree and the index, not on disk. So the cache is
-time-based, and `ttl` is the explicit ceiling on how stale the number can be.
+O contador de sujeira não pode ser invalidado observando um arquivo. Editar um
+arquivo não toca em nada dentro do `.git` — nem no `HEAD`, nem no index — porque
+a informação vive na comparação entre a árvore e o index, não em disco. Então o
+cache é por tempo, e o `ttl` é o teto explícito de quão velho o número pode
+ficar.
 
-Raise it on a large repository, where `git status` costs real time.
+Aumente-o num repositório grande, onde o `git status` custa tempo de verdade.
 
 ### `git-status`
 
-Working-tree state and distance from the upstream: `●3 ↑1 ↓2` — three files
-dirty, one commit the upstream lacks, two commits you lack. Yellow, green, red.
+Estado da árvore de trabalho e distância do upstream: `●3 ↑1 ↓2` — três arquivos
+sujos, um commit que falta ao upstream, dois commits que faltam a você. Amarelo,
+verde, vermelho.
 
-| Option | Values | Default |
+| Opção | Valores | Padrão |
 |---|---|---|
-| `ttl` | seconds; `0` disables caching | `2` |
+| `ttl` | segundos; `0` desliga o cache | `2` |
 
-Clean and in sync renders nothing. A "you're fine" indicator would occupy space
-permanently in order to say nothing.
+Limpo e em sincronia não renderiza nada. Um indicador de "está tudo bem" ocuparia
+espaço permanentemente para não dizer nada.
 
-It takes one `git` call, not two. The original used `status --porcelain` for the
-dirty count and `rev-list --left-right --count HEAD...@{upstream}` for the rest,
-but `status --porcelain --branch` puts both numbers in its header:
+Ele custa uma chamada ao `git`, não duas. A original usava `status --porcelain`
+para o contador de sujeira e `rev-list --left-right --count HEAD...@{upstream}`
+para o resto, mas `status --porcelain --branch` coloca os dois números no
+cabeçalho:
 
 ```
 ## main...origin/main [ahead 1, behind 2]
- M file
+ M arquivo
 ```
 
-Since git's cost is almost entirely process spawn, reading the header halves the
-price for the same information.
+Como o custo do git é quase todo criação de processo, ler o cabeçalho corta o
+preço pela metade para a mesma informação.
 
-The counts are parsed from inside the brackets rather than from the header at
-large, so a branch actually named `ahead` or `behind` cannot be mistaken for
-tracking information. A header with no brackets — no upstream, or an upstream
-that is `[gone]` — simply yields no counts.
+Os contadores são extraídos de dentro dos colchetes, e não do cabeçalho como um
+todo, de modo que uma branch de fato chamada `ahead` ou `behind` não pode ser
+confundida com informação de rastreamento. Um cabeçalho sem colchetes — sem
+upstream, ou com um upstream `[gone]` — simplesmente não produz contadores.
 
-Like `git`, it caches by time; see that widget for why no file can serve as a
-sentinel for a dirty tree.
+Como o `git`, ele usa cache por tempo; veja aquele widget para entender por que
+nenhum arquivo serve de sentinela para uma árvore suja.
 
-Colour is semantic — the `color` option does not apply.
+A cor é semântica — a opção `color` não se aplica.
 
 ### `worktree`
 
-The directory name of a linked worktree, and nothing at all in the main working
-tree — the point is to signal "you are not in the usual checkout". Stays quiet
-when the directory name already matches the branch name, since `git` is showing
-that anyway.
+O nome do diretório de um worktree linkado, e absolutamente nada na árvore de
+trabalho principal — o objetivo é sinalizar "você não está no checkout de
+sempre". Fica quieto quando o nome do diretório já coincide com o nome da branch,
+já que o `git` está mostrando isso de qualquer forma.
 
 ### `context`
 
-Context window usage as a gradient bar, followed by the percentage and the token
-counts: `████▌░░░░░░ 23% (45k/200k)`. The percentage is green, yellow from 70%,
-red from 90%.
+Uso da janela de contexto como barra em gradiente, seguida do percentual e das
+contagens de tokens: `████▌░░░░░░ 23% (45k/200k)`. O percentual é verde, amarelo
+a partir de 70%, vermelho a partir de 90%.
 
-| Option | Values | Default |
+| Opção | Valores | Padrão |
 |---|---|---|
-| `width` | cells in the bar | `20` |
-| `tokens` | `true`, `false` — show the `(used/total)` suffix | `true` |
+| `width` | células da barra | `20` |
+| `tokens` | `true`, `false` — mostra o sufixo `(usado/total)` | `true` |
 
-The bar renders in eighths using Unicode block characters, so a 20-cell bar has
-160 steps rather than 20. At full-block resolution each step is 5% and the bar
-sits still through most of a session before jumping; at eighths it moves
-continuously.
+A barra renderiza em oitavos usando caracteres de bloco Unicode, então uma barra
+de 20 células tem 160 passos em vez de 20. Na resolução de bloco cheio cada passo
+é 5% e a barra fica parada durante boa parte da sessão antes de saltar; em
+oitavos ela se move continuamente.
 
-Usage is taken from `total_input_tokens`, the session accumulator, which is the
-number Claude Code's own interface reports. Last-exchange usage understates the
-real context by roughly 9%.
+O uso vem de `total_input_tokens`, o acumulador da sessão, que é o número que a
+própria interface do Claude Code reporta. O uso da última troca subestima o
+contexto real em cerca de 9%.
 
-A window can be overrun by a single large exchange. The percentage then reads
-past 100 — that is real information — but the bar stops at its configured width,
-because a bar that outgrows its own track pushes the rest of the line sideways.
+Uma janela pode ser estourada por uma única troca grande. O percentual então
+passa de 100 — isso é informação real —, mas a barra para na largura configurada,
+porque uma barra que cresce além do próprio trilho empurra o resto da linha para
+o lado.
 
-Colour is semantic — the `color` option does not apply.
+A cor é semântica — a opção `color` não se aplica.
 
 ### `velocity`
 
-Lines added and removed this session: `+10 -2`, green and red.
+Linhas adicionadas e removidas nesta sessão: `+10 -2`, verde e vermelho.
 
-Each half only appears when it has a value, and the widget disappears entirely
-when nothing changed. The original always printed `+0 -0`, which in a session
-spent reading code is permanent noise — space spent to say nothing happened.
+Cada metade só aparece quando tem valor, e o widget desaparece por completo
+quando nada mudou. A original sempre imprimia `+0 -0`, o que numa sessão gasta
+lendo código é ruído permanente — espaço gasto para dizer que nada aconteceu.
 
-Counts are exact, never abbreviated. `+1.2k` would hide the difference between
-1200 and 1249, and unlike tokens, that difference matters here.
+As contagens são exatas, nunca abreviadas. `+1.2k` esconderia a diferença entre
+1200 e 1249 e, ao contrário do que acontece com tokens, essa diferença importa
+aqui.
 
-Colour is semantic — the `color` option does not apply.
+A cor é semântica — a opção `color` não se aplica.
 
 ### `cache`
 
-Prompt cache hit rate: `cache:70%`. Green from 70%, yellow from 30%, red below.
+Taxa de acerto do cache de prompt: `cache:70%`. Verde a partir de 70%, amarelo a
+partir de 30%, vermelho abaixo disso.
 
-| Option | Values | Default |
+| Opção | Valores | Padrão |
 |---|---|---|
-| `label` | prefix text; `""` removes it | `cache:` |
+| `label` | texto do prefixo; `""` remove | `cache:` |
 
-The rate is cache reads over the sum of cache reads, cache writes and fresh
-input tokens. High means a warm cache and a cheap exchange; low means a cold
-cache, the start of a session, or something having invalidated the prefix.
+A taxa é o total de leituras de cache sobre a soma de leituras, escritas de cache
+e tokens de entrada novos. Alta significa cache quente e troca barata; baixa
+significa cache frio, começo de sessão, ou algo tendo invalidado o prefixo.
 
-**This is a speedometer, not an odometer.** The counters come from
-`current_usage`, which describes only the most recent exchange, so the number
-moves every turn by design.
+**Isto é um velocímetro, não um hodômetro.** Os contadores vêm de
+`current_usage`, que descreve apenas a troca mais recente, então o número se move
+a cada turno por definição.
 
-It renders nothing when all three counters are zero. A hit rate over zero tokens
-is not 0%, it is undefined — printing `0%` would claim the cache missed when
-nothing was asked of it.
+Não renderiza nada quando os três contadores são zero. Uma taxa de acerto sobre
+zero tokens não é 0%, é indefinida — imprimir `0%` afirmaria que o cache errou
+quando nada lhe foi pedido.
 
-The prefix is text rather than a glyph because `context`, `rate-forecast` and
-this widget can share a line and all end in `%`. Text needs no font installed and
-has a predictable width. Shorten it with `label` when space is tight.
+O prefixo é texto e não glifo porque o `context`, o `rate-forecast` e este widget
+podem dividir uma linha e todos terminam em `%`. Texto não exige fonte instalada
+e tem largura previsível. Encurte-o com `label` quando o espaço apertar.
 
-Colour is semantic — the `color` option does not apply.
+A cor é semântica — a opção `color` não se aplica.
 
 ### `cost`
 
-Accumulated session cost: `$3.50`.
+Custo acumulado da sessão: `$3.50`.
 
-| Option | Values | Default |
+| Opção | Valores | Padrão |
 |---|---|---|
-| `warn` | USD amount | unset |
-| `crit` | USD amount | unset |
-| `color` | a palette name | `yellow`, or `green` when a threshold is set |
+| `warn` | valor em USD | não definido |
+| `crit` | valor em USD | não definido |
+| `color` | um nome da paleta | `yellow`, ou `green` quando há limiar definido |
 
-With no thresholds the widget just reports, in yellow. Set `warn` or `crit` and
-it becomes a traffic light: green below `warn`, yellow from `warn`, red from
-`crit`. The floor turns green on purpose — leaving it yellow would make crossing
-`warn` repaint yellow over yellow, and the warning would be invisible.
+Sem limiares, o widget apenas reporta, em amarelo. Defina `warn` ou `crit` e ele
+vira um semáforo: verde abaixo de `warn`, amarelo a partir de `warn`, vermelho a
+partir de `crit`. O piso fica verde de propósito — deixá-lo amarelo faria a
+travessia de `warn` repintar amarelo sobre amarelo, e o aviso seria invisível.
 
-Amounts are formatted under `LC_ALL=C`. In a locale where the decimal separator
-is a comma, bash's `printf` rejects `0.0234` outright: it prints `$0,00` and
-writes to stderr. The value arrives from JSON, where the separator is always a
-period, so the formatting has to agree with that regardless of the machine.
+Valores são formatados sob `LC_ALL=C`. Num locale em que o separador decimal é a
+vírgula, o `printf` do bash rejeita `0.0234` de saída: imprime `$0,00` e escreve
+no stderr. O valor chega do JSON, onde o separador é sempre o ponto, então a
+formatação tem de concordar com isso independentemente da máquina.
 
 ### `rate-forecast`
 
-Rate limit window usage with an overflow forecast: `5h:42%→70%`, coloured green,
-yellow or red by risk.
+As duas janelas de rate limit, cada uma com uso atual, previsão de estouro,
+horário do reset e contagem regressiva:
 
-| Option | Values | Default |
+```
+⏱ 5h:31%→93% ⟳02:10·1h48m · 7d:15% ⟳Fri·5d6h
+```
+
+A janela de cinco horas responde "posso continuar agora"; a de sete dias responde
+"quando eu paro". As duas ficam sempre visíveis, de modo que o widget mantém
+largura constante e você aprende como é o normal.
+
+| Opção | Valores | Padrão |
 |---|---|---|
-| `window` | `5h`, `7d` | `5h` |
+| `window` | `5h`, `7d`; omita para mostrar as duas | omitido |
+| `warn` | percentual de uso que fica amarelo | `50` |
+| `crit` | percentual de uso que fica vermelho | `80` |
+| `separator` | texto entre as duas janelas | `·` |
+| `reset` | `true`, `false` — mostra horário do reset e regressiva | `true` |
 
-The arithmetic lives in an external helper, so you can replace the forecasting
-model without touching the plugin:
+`window` filtra em vez de escolher: deixe de fora para as duas janelas, defina
+para mostrar apenas uma.
+
+**Duas cores, duas perguntas.** O uso atual é verde abaixo de `warn`, amarelo a
+partir de `warn`, vermelho a partir de `crit`. A projeção, por sua vez, tira a
+cor do nível devolvido pelo helper. Um `31%` verde ao lado de um `→93%` amarelo
+não é contradição — é uso baixo com ritmo alto, que é exatamente o que se quer
+enxergar.
+
+O reset mostra o horário abaixo de 24 horas e o dia da semana acima disso,
+escolhido pelo tempo restante e não pela janela, de modo que uma janela de sete
+dias que reseta em quatro horas ainda mostra a hora. Horário e regressiva ficam
+esmaecidos: são contexto para os números, não concorrentes deles.
+
+Qualquer pedaço ilegível apaga só a si mesmo. Um reset malformado descarta os
+tempos e mantém o percentual; um helper ausente descarta a projeção e mantém
+todo o resto. `resets_at` é aceito como epoch em segundos, epoch em
+milissegundos ou string ISO 8601.
+
+Os dois glifos respeitam `icons: false`.
+
+A aritmética da previsão vive num helper externo, para que você possa trocar o
+modelo de previsão sem tocar no plugin:
 
 ```
 $SL_FORECAST_BIN <label> <used_pct> <resets_at_epoch> <window_seconds>
-→ stdout: "<level> <projection>"    level ∈ none|ok|warn|crit
-→ exit:   0, always
+→ stdout: "<nível> <projeção>"    nível ∈ none|ok|warn|crit
+→ exit:   0, sempre
 ```
 
-`SL_FORECAST_BIN` defaults to `$HOME/.claude/rate-forecast.sh`. Without it the
-widget still shows the current percentage — a degraded reading beats no reading.
+O `SL_FORECAST_BIN` aponta por padrão para `$HOME/.claude/rate-forecast.sh`. Sem
+ele, o widget ainda mostra o percentual atual — uma leitura degradada é melhor
+que leitura nenhuma.
 
-Colour is semantic — the `color` option does not apply.
+A cor é semântica — a opção `color` não se aplica.
 
 ### `sprint`
 
-Sprint health for projects that keep sprint state in a file: `7/10 ▸2 ⊙1` —
-stories done over total in the active epics, two queued for development, one
-waiting on review. The ratio is green from 80% done, yellow from 40%, red below.
+Saúde da sprint para projetos que mantêm o estado dela num arquivo:
+`7/10 ▸2 ⊙1` — stories concluídas sobre o total nos épicos ativos, duas na fila
+para desenvolvimento, uma aguardando revisão. A razão é verde a partir de 80%
+concluído, amarela a partir de 40%, vermelha abaixo disso.
 
-| Option | Values | Default |
+| Opção | Valores | Padrão |
 |---|---|---|
-| `path` | file path, relative to the working tree root | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
+| `path` | caminho do arquivo, relativo à raiz da árvore de trabalho | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
 
-This is the methodology widget. The others describe the machine; this one
-describes the work. It renders nothing in a project that does not follow the
-convention — no file, nothing to say — so there is no need to switch it off per
-project.
+Este é o widget de metodologia. Os outros descrevem a máquina; este descreve o
+trabalho. Ele não renderiza nada num projeto que não segue a convenção — sem
+arquivo, nada a dizer —, então não há necessidade de desligá-lo projeto a
+projeto.
 
-The parsing lives in an external helper, because the format is something teams
-adapt. Swapping methodology means swapping the helper, not patching the plugin:
+O parse vive num helper externo, porque o formato é algo que os times adaptam.
+Trocar de metodologia significa trocar o helper, não remendar o plugin:
 
 ```
-$SL_SPRINT_BIN <path/to/file>
-→ stdout: "<done>/<total> <ready> <review>", empty when no sprint is active
-→ exit:   0, always
+$SL_SPRINT_BIN <caminho/para/arquivo>
+→ stdout: "<feitas>/<total> <prontas> <revisão>", vazio quando não há sprint ativa
+→ exit:   0, sempre
 ```
 
-`SL_SPRINT_BIN` defaults to `$HOME/.claude/sprint-health-line.sh`. Without it the
-widget stays silent — there is no partial reading to fall back to, unlike
-`rate-forecast`.
+O `SL_SPRINT_BIN` aponta por padrão para `$HOME/.claude/sprint-health-line.sh`.
+Sem ele o widget fica em silêncio — não há leitura parcial para a qual recorrer,
+ao contrário do `rate-forecast`.
 
-Inside a linked worktree it reads that worktree's own file, not the main tree's:
-each branch carries its own sprint state.
+Dentro de um worktree linkado ele lê o arquivo daquele worktree, não o da árvore
+principal: cada branch carrega o próprio estado de sprint.
 
-Unlike the git widgets, this one caches on `mtime` and that is exact — sprint
-state does live in a file, so the parse runs when the file changes and only then.
+Ao contrário dos widgets de git, este usa cache por `mtime`, e aqui isso é exato
+— o estado da sprint de fato vive num arquivo, então o parse roda quando o
+arquivo muda e somente então.
 
-The review count uses `⊙`, where the original statusline used `⚠`. Here `⚠` is
-already the core's input-failure marker, and both can land on the same line. A
-story in review is a queue state, not an error.
+O contador de revisão usa `⊙`, onde a statusline original usava `⚠`. Aqui o `⚠`
+já é o marcador de falha de entrada do núcleo, e os dois podem cair na mesma
+linha. Uma story em revisão é um estado de fila, não um erro.
 
-Colour is semantic — the `color` option does not apply.
+A cor é semântica — a opção `color` não se aplica.
 
 ### `flow`
 
-Consumption on the CI&T Flow Platform, with a forecast: `flow:34%→58%`. Green
-below 80% projected, yellow from 80%, red from 100%.
+Consumo na CI&T Flow Platform, com previsão: `flow:34%→58%`. Verde abaixo de 80%
+projetado, amarelo a partir de 80%, vermelho a partir de 100%.
 
-| Option | Values | Default |
+| Opção | Valores | Padrão |
 |---|---|---|
 | `metric` | `budget`, `requests` | `budget` |
-| `ttl` | seconds between fetches | `300` |
-| `refresh` | `true`, `false` — whether to fetch at all | `true` |
-| `cache` | path to the fetched JSON | `$XDG_CACHE_HOME/flow-consumption.json` |
-| `bin` | path to the fetcher | `bin/flow-consumption.sh` in this plugin |
+| `ttl` | segundos entre buscas | `300` |
+| `refresh` | `true`, `false` — se deve buscar | `true` |
+| `cache` | caminho do JSON buscado | `$XDG_CACHE_HOME/flow-consumption.json` |
+| `bin` | caminho do fetcher | `bin/flow-consumption.sh` neste plugin |
 
-This is the corporate-provider widget. Going through a company gateway means a
-quota with its own limit and its own renewal, invisible to the Anthropic rate
-limit, and it belongs on the same line as everything else.
+Este é o widget de provedor corporativo. Passar por um gateway da empresa
+significa uma quota com limite e renovação próprios, invisível ao rate limit da
+Anthropic, e ela pertence à mesma linha que todo o resto.
 
-**Fetching and showing are separate, and so are their clocks.**
-`bin/flow-consumption.sh` talks to the network and writes JSON; the widget only
-reads that JSON. A network call on the render path would make the whole
-statusline wait on gateway latency, every repaint.
+**Buscar e mostrar são coisas separadas, e os relógios delas também.** O
+`bin/flow-consumption.sh` fala com a rede e escreve JSON; o widget apenas lê esse
+JSON. Uma chamada de rede no caminho de renderização faria a statusline inteira
+esperar pela latência do gateway, a cada repaint.
 
-- The render is invalidated by the JSON's mtime, so a new figure appears the
-  moment a fetch finishes rather than when some timer expires.
-- The fetch is throttled by a marker file, so the API is not hammered.
+- A renderização é invalidada pelo mtime do JSON, então um número novo aparece no
+  instante em que a busca termina, e não quando algum timer expira.
+- A busca é limitada por um arquivo marcador, para que a API não seja martelada.
 
-A single TTL for both would force a choice between showing stale numbers and
-fetching too often.
+Um TTL único para os dois forçaria escolher entre mostrar números velhos e buscar
+com frequência demais.
 
-The marker is written *before* the fetch is launched, not after: two repaints
-landing at nearly the same instant must not become two fetches.
+O marcador é escrito *antes* de a busca ser disparada, não depois: dois repaints
+caindo quase no mesmo instante não podem virar duas buscas.
 
-**No token, no noise.** The fetcher needs `ANTHROPIC_AUTH_TOKEN` in the
-environment. Without it, it records `{"ok": false}` and the widget renders
-nothing. A machine with no Flow access sees no error — it sees a statusline
-without that piece.
+**Sem token, sem ruído.** O fetcher precisa do `ANTHROPIC_AUTH_TOKEN` no
+ambiente. Sem ele, registra `{"ok": false}` e o widget não renderiza nada. Uma
+máquina sem acesso ao Flow não vê erro — vê uma statusline sem aquele pedaço.
 
 ### `command`
 
-Runs an external command and shows its output. This is the escape hatch: any
-data source, no bash required.
+Roda um comando externo e mostra a saída. Esta é a válvula de escape: qualquer
+fonte de dados, sem precisar escrever bash.
 
-Instances are named `command:<name>`, so you can have several:
+As instâncias são nomeadas `command:<nome>`, então você pode ter várias:
 
 ```json
 {
@@ -438,42 +483,43 @@ Instances are named `command:<name>`, so you can have several:
 }
 ```
 
-| Option | Values | Default |
+| Opção | Valores | Padrão |
 |---|---|---|
-| `cmd` | shell command producing the text | required |
-| `refresh` | shell command run detached when the ttl expires | none |
-| `ttl` | seconds; `0` disables caching | `60` |
-| `timeout` | seconds before the command is killed | `2` |
-| `colors` | `true` keeps colour sequences from the output | `false` |
-| `label` | text prefixed to the output | none |
+| `cmd` | comando de shell que produz o texto | obrigatório |
+| `refresh` | comando de shell rodado destacado quando o ttl expira | nenhum |
+| `ttl` | segundos; `0` desliga o cache | `60` |
+| `timeout` | segundos até o comando ser morto | `2` |
+| `colors` | `true` preserva as sequências de cor da saída | `false` |
+| `label` | texto prefixado à saída | nenhum |
 
-**Reading and refreshing are separate on purpose.** `cmd` produces the text and
-must be fast. `refresh` is optional, runs detached, and exists to warm whatever
-`cmd` reads. A fetcher that talks to the network cannot run synchronously — the
-whole statusline would wait on its latency. With both, the widget shows the
-previous round's result and kicks off the next one in the background.
+**Ler e atualizar são separados de propósito.** O `cmd` produz o texto e precisa
+ser rápido. O `refresh` é opcional, roda destacado e existe para aquecer o que o
+`cmd` lê. Um fetcher que fala com a rede não pode rodar de forma síncrona — a
+statusline inteira esperaria pela latência dele. Com os dois, o widget mostra o
+resultado da rodada anterior e dispara a próxima em segundo plano.
 
-**Third-party output is sanitised.** Escape sequences are not decoration: OSC 52
-writes to the user's clipboard, OSC 0 and 2 change the window title, and CSI
-moves the cursor and can scramble the screen. By default nothing gets through.
-`colors: true` opens one narrow exception — SGR, the CSI ending in `m`, which
-only changes colour and style — and still strips the rest. Newlines are collapsed
-too, since the statusline composes its own lines.
+**Saída de terceiros é higienizada.** Sequências de escape não são enfeite: OSC
+52 escreve na área de transferência do usuário, OSC 0 e 2 mudam o título da
+janela, e CSI move o cursor e pode embaralhar a tela. Por padrão nada passa. O
+`colors: true` abre uma exceção estreita — SGR, o CSI terminado em `m`, que só
+muda cor e estilo — e ainda assim remove o resto. Quebras de linha também são
+colapsadas, já que a statusline compõe as próprias linhas.
 
-**`cmd` runs through `bash -c`**, so `~` and `$VAR` expand as you would expect
-when writing a path into the config. It also means the config file is executable
-content: treat it with the same care as your shell rc.
+**O `cmd` roda através de `bash -c`**, então `~` e `$VAR` expandem como você
+esperaria ao escrever um caminho na configuração. Isso também significa que o
+arquivo de configuração é conteúdo executável: trate-o com o mesmo cuidado que
+trata o rc do seu shell.
 
-**Timeouts work without coreutils.** macOS ships no `timeout(1)`, and without
-Homebrew coreutils there is no `gtimeout` either. When neither exists the widget
-falls back to a pure-bash watchdog, so a hung command still cannot freeze the
-statusline.
+**Timeouts funcionam sem coreutils.** O macOS não traz `timeout(1)` e, sem o
+coreutils do Homebrew, também não há `gtimeout`. Quando nenhum dos dois existe, o
+widget recorre a um watchdog em bash puro, de modo que um comando pendurado ainda
+assim não consegue congelar a statusline.
 
-## Writing a widget
+## Escrevendo um widget
 
-A widget is one file in `widgets/`. It registers itself when sourced and writes
-to stdout. That is the whole contract. Here is `widgets/model.sh` in full, with
-its comments stripped:
+Um widget é um arquivo em `widgets/`. Ele se registra ao ser carregado e escreve
+no stdout. Esse é o contrato inteiro. Aqui está o `widgets/model.sh` na íntegra,
+com os comentários removidos:
 
 ```bash
 register_widget model \
@@ -499,112 +545,119 @@ widget_model_render() {
 }
 ```
 
-Then add it to `lines` in your config. Only widgets your config names are
-sourced, so an unused widget costs nothing.
+Depois acrescente-o a `lines` na sua configuração. Só os widgets que a sua
+configuração nomeia são carregados, então um widget não usado não custa nada.
+
+As strings de `--desc` ficam em inglês por serem texto de interface de um plugin
+publicável; comentários e documentação seguem em português.
 
 ### `register_widget`
 
-| Flag | Required | Meaning |
+| Flag | Obrigatória | Significado |
 |---|---|---|
-| `--render FN` | yes | Function that writes the widget's text to stdout. |
-| `--color NAME` | no | Default colour, overridable by the user's config. |
-| `--self-color` | no | The widget colours itself and the core leaves it alone. Use when colour carries information rather than preference. |
-| `--desc TEXT` | no | One-line description. |
+| `--render FN` | sim | Função que escreve o texto do widget no stdout. |
+| `--color NOME` | não | Cor padrão, sobrescrevível pela configuração do usuário. |
+| `--self-color` | não | O widget pinta a si mesmo e o núcleo o deixa em paz. Use quando a cor carrega informação em vez de preferência. |
+| `--desc TEXTO` | não | Descrição de uma linha. |
 
-### Reading user options
+### Lendo opções do usuário
 
 ```bash
-sl_config_widget_opt <widget> <key> [default]
+sl_config_widget_opt <widget> <chave> [padrão]
 ```
 
-Returns the value from `widgets.<widget>.<key>` in the user's config, as a
-string — numbers and booleans included, so `"tokens": false` comes back as the
+Devolve o valor de `widgets.<widget>.<chave>` na configuração do usuário, como
+string — números e booleanos inclusive, então `"tokens": false` volta como a
 string `false`.
 
-Pass a default when you have one. It is applied inside `jq`, against the key
-being absent — not in bash afterwards. That distinction matters: bash cannot tell
-an absent key from a key set to `""`, so a bash-side fallback would quietly
-override a deliberate empty value and make options like `"label": ""`
-impossible.
+Passe um padrão quando tiver um. Ele é aplicado dentro do `jq`, contra a ausência
+da chave — não no bash depois. Essa distinção importa: o bash não consegue
+distinguir uma chave ausente de uma chave definida como `""`, então um fallback
+do lado do bash sobrescreveria silenciosamente um vazio deliberado e tornaria
+impossíveis opções como `"label": ""`.
 
-### Rules
+### Regras
 
-**Print nothing when you have nothing.** Empty output makes the widget vanish
-and takes its separator with it. Do not print `n/a` or `-`.
+**Não imprima nada quando não tiver nada.** Saída vazia faz o widget sumir e leva
+o separador junto. Não imprima `n/a` nem `-`.
 
-**Never exit non-zero to signal a problem** — but if you do, the core catches it
-and treats the widget as empty. The rest of the line survives either way.
+**Nunca saia com código diferente de zero para sinalizar problema** — mas, se
+sair, o núcleo captura e trata o widget como vazio. O resto da linha sobrevive
+nos dois casos.
 
-**Never assume a dependency exists.** Degrade to less information instead of
-disappearing.
+**Nunca presuma que uma dependência existe.** Degrade para menos informação em
+vez de desaparecer.
 
-### Input variables
+### Variáveis de entrada
 
-Parsed from the session JSON in a single `jq` pass before any widget runs.
+Extraídas do JSON da sessão numa única passada de `jq`, antes de qualquer widget
+rodar.
 
-| Variable | Contents |
+| Variável | Conteúdo |
 |---|---|
-| `SL_MODEL` | Model display name, or `Unknown` |
-| `SL_MODEL_ID` | Model identifier |
-| `SL_CWD` | Session working directory |
-| `SL_COST` | Session cost in USD |
-| `SL_LINES_ADDED`, `SL_LINES_REMOVED` | Lines changed this session |
-| `SL_CTX_SIZE`, `SL_CTX_USED` | Context window size and tokens used |
-| `SL_INPUT_TOKENS` | Fresh input tokens, **last exchange only** |
-| `SL_CACHE_READ`, `SL_CACHE_CREATE` | Prompt cache read and creation tokens, **last exchange only** |
-| `SL_5H_PCT`, `SL_5H_RESET` | Five-hour window: percentage used, reset epoch |
-| `SL_7D_PCT`, `SL_7D_RESET` | Seven-day window: percentage used, reset epoch |
-| `SL_JQ_OK` | `1` when the session JSON parsed, `0` otherwise |
+| `SL_MODEL` | Nome de exibição do modelo, ou `Unknown` |
+| `SL_MODEL_ID` | Identificador do modelo |
+| `SL_CWD` | Diretório de trabalho da sessão |
+| `SL_COST` | Custo da sessão em USD |
+| `SL_LINES_ADDED`, `SL_LINES_REMOVED` | Linhas alteradas nesta sessão |
+| `SL_CTX_SIZE`, `SL_CTX_USED` | Tamanho da janela de contexto e tokens usados |
+| `SL_INPUT_TOKENS` | Tokens de entrada novos, **apenas da última troca** |
+| `SL_CACHE_READ`, `SL_CACHE_CREATE` | Tokens de leitura e criação de cache de prompt, **apenas da última troca** |
+| `SL_5H_PCT`, `SL_5H_RESET` | Janela de cinco horas: percentual usado, epoch do reset |
+| `SL_7D_PCT`, `SL_7D_RESET` | Janela de sete dias: percentual usado, epoch do reset |
+| `SL_JQ_OK` | `1` quando o JSON da sessão foi parseado, `0` caso contrário |
 
-### Caching
+### Cache
 
-Two helpers, for the two ways a value goes stale:
+Dois helpers, para os dois jeitos de um valor envelhecer:
 
 ```bash
-cache_by_mtime <key> <sentinel-file> <command...>   # invalidated by a file changing
-cache_by_ttl   <key> <seconds>      <command...>    # invalidated by time
+cache_by_mtime <chave> <arquivo-sentinela> <comando...>   # invalidado por arquivo que muda
+cache_by_ttl   <chave> <segundos>          <comando...>   # invalidado por tempo
 ```
 
-Use them for anything that spawns a process. The statusline repaints often
-enough that an uncached subprocess is felt.
+Use-os para qualquer coisa que crie um processo. A statusline repinta com
+frequência suficiente para que um subprocesso sem cache seja sentido.
 
-### Locating the repository
+### Localizando o repositório
 
 ```bash
-raw="$(sl_git_paths)"           # "gitdir<TAB>commondir<TAB>toplevel", or nothing
+raw="$(sl_git_paths)"           # "gitdir<TAB>commondir<TAB>toplevel", ou nada
 IFS=$'\t' read -r gitdir common top <<EOF
 $raw
 EOF
-sl_git_is_worktree "$gitdir" "$common" && echo "linked worktree"
+sl_git_is_worktree "$gitdir" "$common" && echo "worktree linkado"
 ```
 
-Resolved once per directory and cached, so several git-aware widgets on the same
-line cost one lookup between them. Use it instead of calling `git rev-parse`
-yourself — it already handles the two things that are easy to get wrong:
-`--git-common-dir` coming back relative, and macOS resolving `/var` through a
-symlink, which otherwise makes every main working tree look like a worktree.
+Resolvido uma vez por diretório e cacheado, então vários widgets que conhecem git
+na mesma linha custam uma consulta entre todos. Use isso em vez de chamar
+`git rev-parse` por conta própria — ele já trata as duas coisas fáceis de errar:
+o `--git-common-dir` voltando relativo, e o macOS resolvendo `/var` por um
+symlink, o que de outro modo faz toda árvore de trabalho principal parecer um
+worktree.
 
-## The statusline never disappears
+## A statusline nunca desaparece
 
-An empty statusline is indistinguishable from a dead plugin, so it never renders
-empty. A `⚠` means an input failed — unparseable session JSON, or a malformed
-config. A `—` means everything rendered empty without any error. Both are more
-useful than a blank line, and neither can be confused with normal output.
+Uma statusline vazia é indistinguível de um plugin morto, então ela nunca
+renderiza vazia. Um `⚠` significa que uma entrada falhou — JSON de sessão
+ilegível, ou configuração malformada. Um `—` significa que tudo renderizou vazio
+sem erro nenhum. Ambos são mais úteis que uma linha em branco, e nenhum dos dois
+pode ser confundido com saída normal.
 
-The entrypoint also never runs under `set -e`. A non-zero return anywhere must
-not be able to erase the user's statusline.
+O entrypoint também nunca roda sob `set -e`. Um retorno diferente de zero em
+qualquer lugar não pode ser capaz de apagar a statusline do usuário.
 
-## Development
+## Desenvolvimento
 
 ```bash
 brew install bats-core jq     # macOS
 bats -r tests
 ```
 
-CI runs the suite on macOS and Ubuntu, and additionally smoke-tests the
-entrypoint under macOS's system bash 3.2 to catch bash 4+ syntax before it
-reaches anyone.
+O CI roda a suíte no macOS e no Ubuntu e, além disso, faz um teste de fumaça do
+entrypoint sob o bash 3.2 de sistema do macOS, para pegar sintaxe de bash 4+
+antes que ela chegue a alguém.
 
-## License
+## Licença
 
 MIT

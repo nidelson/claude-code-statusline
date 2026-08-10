@@ -1,0 +1,25 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-code-statusline",
+  "description": "Marketplace de plugin único para a claude-code-statusline.",
+  "owner": {
+    "name": "Nidelson Gimenez",
+    "url": "https://github.com/nidelson"
+  },
+  "plugins": [
+    {
+      "name": "claude-code-statusline",
+      "source": "./",
+      "description": "Statusline modular em bash, com previsão de estouro de rate limit, quota de provedor corporativo e saúde de sprint. Widgets carregados sob demanda a partir de um único config.json.",
+      "category": "monitoring",
+      "tags": [
+        "statusline",
+        "rate-limit",
+        "forecast",
+        "context",
+        "git",
+        "bash"
+      ]
+    }
+  ]
+}
