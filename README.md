@@ -318,15 +318,47 @@ period, so the formatting has to agree with that regardless of the machine.
 
 ### `rate-forecast`
 
-Rate limit window usage with an overflow forecast: `5h:42%→70%`, coloured green,
-yellow or red by risk.
+Both rate limit windows, each with current usage, an overflow forecast, the
+reset time and a countdown:
+
+```
+⏱ 5h:31%→93% ⟳02:10·1h48m · 7d:15% ⟳Fri·5d6h
+```
+
+The five-hour window answers "can I keep going right now"; the seven-day window
+answers "when do I stop". Both are always shown, so the widget keeps a constant
+width and you learn what normal looks like.
 
 | Option | Values | Default |
 |---|---|---|
-| `window` | `5h`, `7d` | `5h` |
+| `window` | `5h`, `7d`; omit to show both | omitted |
+| `warn` | usage percentage that turns yellow | `50` |
+| `crit` | usage percentage that turns red | `80` |
+| `separator` | text between the two windows | `·` |
+| `reset` | `true`, `false` — show reset time and countdown | `true` |
 
-The arithmetic lives in an external helper, so you can replace the forecasting
-model without touching the plugin:
+`window` filters rather than selects: leave it out for both windows, set it to
+show only one.
+
+**Two colours, two questions.** Current usage is green below `warn`, yellow from
+`warn`, red from `crit`. The projection takes its colour from the helper's level
+instead. A green `31%` next to a yellow `→93%` is not a contradiction — it is low
+usage at a high burn rate, which is precisely what you want to see.
+
+The reset shows a clock below 24 hours and a weekday above it, chosen by time
+remaining rather than by window, so a seven-day window resetting in four hours
+still shows the hour. Reset time and countdown are dimmed: they are context for
+the numbers, not competitors.
+
+Anything unreadable erases only itself. A malformed reset drops the times and
+keeps the percentage; a missing helper drops the projection and keeps everything
+else. `resets_at` is accepted as epoch seconds, epoch milliseconds or an ISO 8601
+string.
+
+Both glyphs honour `icons: false`.
+
+The forecast arithmetic lives in an external helper, so you can replace the
+forecasting model without touching the plugin:
 
 ```
 $SL_FORECAST_BIN <label> <used_pct> <resets_at_epoch> <window_seconds>
