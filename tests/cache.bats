@@ -60,3 +60,34 @@ line two" ]
   [ "$output" = "line one
 line two" ]
 }
+
+@test "a stat form was detected on this platform" {
+  [ "$SL_STAT_FORM" = "bsd" ] || [ "$SL_STAT_FORM" = "gnu" ]
+}
+
+@test "the timestamp is a single-line integer" {
+  run _sl_mtime "$SENTINEL"
+  [ "$status" -eq 0 ]
+  # Uma linha só, e só dígitos. Um carimbo com várias linhas ou com texto
+  # envenena a comparação do cache em silêncio: `read` lê a primeira linha do
+  # arquivo e compara com o valor inteiro, que nunca coincide, e o cache deixa
+  # de acertar sem nunca dar erro.
+  [ "${#lines[@]}" -eq 1 ]
+  [[ "$output" =~ ^[0-9]+$ ]]
+}
+
+@test "the timestamp tracks the file, not the filesystem" {
+  local before after
+  before="$(_sl_mtime "$SENTINEL")"
+  sleep 1
+  printf 'v2' > "$SENTINEL"
+  after="$(_sl_mtime "$SENTINEL")"
+  # Dois arquivos do mesmo sistema de arquivos não podem compartilhar carimbo:
+  # é isso que distingue ler o arquivo de ler o sistema de arquivos.
+  [ "$after" != "$before" ]
+}
+
+@test "an unreadable target degrades to zero" {
+  run _sl_mtime "$BATS_TEST_TMPDIR/nao-existe"
+  [ "$output" = "0" ]
+}
