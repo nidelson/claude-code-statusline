@@ -22,10 +22,23 @@ setup() {
   [ "$(sl_widget_attr SELFCOLOR rate-forecast)" = "1" ]
 }
 
-@test "renders nothing without a percentage" {
+@test "renders nothing without any percentage" {
   SL_5H_PCT=""
+  SL_7D_PCT=""
   run widget_rate_forecast_render
   [ "$output" = "" ]
+}
+
+@test "one window alone renders without a stray separator" {
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT=""
+  run widget_rate_forecast_render
+  [[ "$output" == *"7d:"* ]]
+  [[ "$output" == *"13%"* ]]
+  [[ "$output" != *"5h"* ]]
+  # O separador entre janelas vai cercado de espaços; o `·` interno do rótulo de
+  # reset não vai. Só o primeiro seria órfão aqui.
+  [[ "$output" != *" · "* ]]
 }
 
 @test "level none shows the percentage only" {
@@ -182,6 +195,9 @@ EOF
   export FAKE_FORECAST_OUT="none"
   SL_NOW=1800000000
   SL_5H_RESET=1799999000
+  # Isola a janela de cinco horas: a de sete dias traria o próprio reset, e o
+  # `·` dele mascararia a degradação que este teste mede.
+  SL_7D_PCT=""
   run widget_rate_forecast_render
   [[ "$output" == *"42%"* ]]
   [[ "$output" != *"·"* ]]
@@ -191,9 +207,80 @@ EOF
   export FAKE_FORECAST_OUT="none"
   SL_NOW=1800000000
   SL_5H_RESET="banana"
+  SL_7D_PCT=""
   run widget_rate_forecast_render
   [[ "$output" == *"42%"* ]]
   [[ "$output" != *"·"* ]]
+}
+
+@test "renders both windows by default" {
+  export FAKE_FORECAST_OUT="none"
+  run widget_rate_forecast_render
+  [[ "$output" == *"5h:"* ]]
+  [[ "$output" == *"42%"* ]]
+  [[ "$output" == *"7d:"* ]]
+  [[ "$output" == *"13%"* ]]
+}
+
+@test "the five-hour window comes first" {
+  export FAKE_FORECAST_OUT="none"
+  run widget_rate_forecast_render
+  [[ "${output%%7d*}" == *"5h:"* ]]
+}
+
+@test "window five-hour filters out the seven-day window" {
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'EOF'
+{"version":1,"lines":[["rate-forecast"]],"widgets":{"rate-forecast":{"window":"5h"}}}
+EOF
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  export FAKE_FORECAST_OUT="none"
+  run widget_rate_forecast_render
+  [[ "$output" == *"5h:"* ]]
+  [[ "$output" != *"7d"* ]]
+}
+
+@test "each window is coloured on its own figures" {
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT="85"
+  SL_7D_PCT="10"
+  run widget_rate_forecast_render
+  [[ "$output" == *$'\033[31m'"85%"* ]]
+  [[ "$output" == *$'\033[32m'"10%"* ]]
+}
+
+@test "a configured separator replaces the default" {
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'EOF'
+{"version":1,"lines":[["rate-forecast"]],"widgets":{"rate-forecast":{"separator":"//","reset":false}}}
+EOF
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  export FAKE_FORECAST_OUT="none"
+  run widget_rate_forecast_render
+  [[ "$output" == *"//"* ]]
+}
+
+@test "icons on shows the widget mark" {
+  export FAKE_FORECAST_OUT="none"
+  SL_CONFIG_ICONS=1
+  run widget_rate_forecast_render
+  [[ "$output" == *"⏱"* ]]
+}
+
+@test "icons off hides the widget mark" {
+  export FAKE_FORECAST_OUT="none"
+  SL_CONFIG_ICONS=0
+  run widget_rate_forecast_render
+  [[ "$output" != *"⏱"* ]]
+  [[ "$output" == *"5h:"* ]]
+}
+
+@test "icons off hides the reset mark but keeps the times" {
+  export FAKE_FORECAST_OUT="none"
+  SL_CONFIG_ICONS=0
+  SL_NOW=1800000000
+  SL_5H_RESET=1800006480
+  run widget_rate_forecast_render
+  [[ "$output" != *"⟳"* ]]
+  [[ "$output" == *"1h48m"* ]]
 }
 
 @test "reset false hides the times" {

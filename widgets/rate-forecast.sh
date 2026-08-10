@@ -64,22 +64,15 @@ _forecast_window_seconds() {
   esac
 }
 
-widget_rate_forecast_render() {
-  local window pct reset level proj out color raw
-  local int warn crit ucolor repoch rlabel show_reset
+# Uma janela: rótulo, uso atual, projeção e tempos. Retorna 1 quando não há
+# percentual utilizável, para que o chamador saiba não emitir separador.
+_rf_window() {
+  local window="$1" pct="$2" reset="$3"
+  local level proj out color raw
+  local int warn crit ucolor repoch rlabel show_reset mark
 
-  window="$(sl_config_widget_opt rate-forecast window)"
-  [ -n "$window" ] || window="5h"
-
-  if [ "$window" = "7d" ]; then
-    pct="$SL_7D_PCT"; reset="$SL_7D_RESET"
-  else
-    window="5h"
-    pct="$SL_5H_PCT"; reset="$SL_5H_RESET"
-  fi
-
-  [ -n "$pct" ] || return 0
-  int="$(_rf_round "$pct")" || return 0
+  [ -n "$pct" ] || return 1
+  int="$(_rf_round "$pct")" || return 1
 
   warn="$(sl_config_widget_opt rate-forecast warn "$SL_RF_DEFAULT_WARN")"
   crit="$(sl_config_widget_opt rate-forecast crit "$SL_RF_DEFAULT_CRIT")"
@@ -119,10 +112,43 @@ widget_rate_forecast_render() {
   # Um reset ilegível apaga só a si mesmo: percentual e projeção sobrevivem.
   show_reset="$(sl_config_widget_opt rate-forecast reset true)"
   if [ "$show_reset" != "false" ]; then
+    mark=""
+    [ "${SL_CONFIG_ICONS:-1}" = "1" ] && mark="⟳"
     repoch="$(sl_epoch_normalize "$reset")" \
       && rlabel="$(sl_reset_label "$repoch" "$(_rf_now)")" \
-      && out="${out} ${SL_DIM}${rlabel}${SL_RESET}"
+      && out="${out} ${SL_DIM}${mark}${rlabel}${SL_RESET}"
   fi
 
   printf '%s' "$out"
+}
+
+widget_rate_forecast_render() {
+  local window sep piece mark line=""
+
+  window="$(sl_config_widget_opt rate-forecast window)"
+  sep="$(sl_config_widget_opt rate-forecast separator "·")"
+
+  if [ "$window" != "7d" ]; then
+    piece="$(_rf_window 5h "$SL_5H_PCT" "$SL_5H_RESET")" && line="$piece"
+  fi
+
+  if [ "$window" != "5h" ]; then
+    if piece="$(_rf_window 7d "$SL_7D_PCT" "$SL_7D_RESET")"; then
+      # O separador só entra quando já há algo à esquerda: janela ausente não
+      # pode deixar pontuação órfã, do mesmo modo que o núcleo trata widget
+      # vazio.
+      if [ -n "$line" ]; then
+        line="${line} ${SL_DIM}${sep}${SL_RESET} ${piece}"
+      else
+        line="$piece"
+      fi
+    fi
+  fi
+
+  [ -n "$line" ] || return 0
+
+  mark=""
+  [ "${SL_CONFIG_ICONS:-1}" = "1" ] && mark="${SL_DIM}⏱${SL_RESET} "
+
+  printf '%s%s' "$mark" "$line"
 }
