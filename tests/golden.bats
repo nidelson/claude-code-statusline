@@ -34,7 +34,10 @@ run_statusline() {
 
 @test "shows the rate limit percentage" {
   run_statusline "$PROJECT_ROOT/tests/fixtures/session.json"
-  [[ "$output" == *"5h:42%"* ]]
+  # O rótulo é esmaecido e o percentual carrega a cor do nível de uso, então há
+  # sequências de escape entre os dois.
+  [[ "$output" == *"5h:"* ]]
+  [[ "$output" == *"42%"* ]]
 }
 
 @test "exits zero on unparseable stdin" {

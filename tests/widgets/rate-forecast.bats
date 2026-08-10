@@ -84,11 +84,71 @@ EOF
   sl_config_load "$BATS_TEST_TMPDIR/config.json"
   export FAKE_FORECAST_OUT="none"
   run widget_rate_forecast_render
-  [[ "$output" == *"7d:13%"* ]]
+  # Rótulo e percentual não são mais contíguos: o rótulo é esmaecido e o
+  # percentual carrega a cor do nível de uso, com sequências de escape entre os
+  # dois.
+  [[ "$output" == *"7d:"* ]]
+  [[ "$output" == *"13%"* ]]
 }
 
 @test "defaults to the five-hour window" {
   export FAKE_FORECAST_OUT="none"
   run widget_rate_forecast_render
-  [[ "$output" == *"5h:42%"* ]]
+  [[ "$output" == *"5h:"* ]]
+  [[ "$output" == *"42%"* ]]
+}
+
+@test "usage below warn paints green" {
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT="49"
+  run widget_rate_forecast_render
+  [[ "$output" == *$'\033[32m'"49%"* ]]
+}
+
+@test "usage at warn paints yellow" {
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT="50"
+  run widget_rate_forecast_render
+  [[ "$output" == *$'\033[33m'"50%"* ]]
+}
+
+@test "usage at crit paints red" {
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT="80"
+  run widget_rate_forecast_render
+  [[ "$output" == *$'\033[31m'"80%"* ]]
+}
+
+@test "usage just below crit stays yellow" {
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT="79"
+  run widget_rate_forecast_render
+  [[ "$output" == *$'\033[33m'"79%"* ]]
+}
+
+@test "a float percentage is rounded before comparison" {
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT="49.6"
+  run widget_rate_forecast_render
+  [[ "$output" == *"50%"* ]]
+  [[ "$output" == *$'\033[33m'"50%"* ]]
+}
+
+@test "configured thresholds override the defaults" {
+  cat > "$BATS_TEST_TMPDIR/config.json" <<'EOF'
+{"version":1,"lines":[["rate-forecast"]],"widgets":{"rate-forecast":{"warn":10,"crit":20}}}
+EOF
+  sl_config_load "$BATS_TEST_TMPDIR/config.json"
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT="25"
+  run widget_rate_forecast_render
+  [[ "$output" == *$'\033[31m'"25%"* ]]
+}
+
+@test "a non-numeric percentage renders nothing" {
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT="banana"
+  SL_7D_PCT=""
+  run widget_rate_forecast_render
+  [ "$output" = "" ]
 }
