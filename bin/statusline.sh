@@ -14,6 +14,7 @@ SL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$SL_ROOT/lib/config.sh"
 . "$SL_ROOT/lib/sanitize.sh"
 . "$SL_ROOT/lib/timefmt.sh"
+. "$SL_ROOT/lib/num.sh"
 
 input="$(cat)"
 sl_parse_stdin "$input"

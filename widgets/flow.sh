@@ -84,18 +84,28 @@ _flow_compute() {
     *)        label="flow:"; metric=budget ;;
   esac
 
-  # Uma passada de jq devolve os dois números; vazio quando ok é falso.
+  # Uma passada de jq devolve os dois números crus; vazio quando ok é falso.
+  #
+  # O jq entrega o valor como veio da API, sem arredondar. Antes ele aplicava
+  # `floor`, e 24,9% aparecia como `24%` enquanto o widget vizinho, com a mesma
+  # fração, mostrava `25%`. O arredondamento agora é o de lib/num.sh, o mesmo
+  # que todos os outros percentuais usam.
   used="$(jq -r --arg m "$metric" '
     if (.ok | not) then empty
-    else "\(.[$m].percentage // 0 | floor) \(.[$m].projected_percentage // 0 | floor)"
+    else "\(.[$m].percentage // 0) \(.[$m].projected_percentage // "-")"
     end' "$file" 2>/dev/null)" || return 0
   [ -n "$used" ] || return 0
 
   set -- $used
-  used="$1"; proj="$2"
-
-  case "$used" in ""|*[!0-9]*) return 0 ;; esac
-  case "$proj" in ""|*[!0-9]*) proj="" ;; esac
+  used="$(sl_round "$1")" || return 0
+  # `-` é o sentinela de "sem projeção". Antes era `// 0`, que transformava um
+  # projected_percentage nulo em `→0%` — uma projeção de zero por cento, que a
+  # API nunca afirmou. A métrica `requests` chega assim quando é ilimitada.
+  if [ "$2" = "-" ]; then
+    proj=""
+  else
+    proj="$(sl_round "$2")" || proj=""
+  fi
 
   if [ -n "$proj" ] && [ "$proj" -ge 100 ]; then
     color="$(sl_color red)"

@@ -48,7 +48,7 @@ widget_cache_render() {
   # começo da sessão seria afirmar que o cache falhou, o que não aconteceu.
   [ "$total" -gt 0 ] || return 0
 
-  pct=$(( (read_tok * 100 + total / 2) / total ))
+  pct="$(sl_pct "$read_tok" "$total")" || return 0
 
   label="$(sl_config_widget_opt cache label "$SL_CACHE_DEFAULT_LABEL")"
 

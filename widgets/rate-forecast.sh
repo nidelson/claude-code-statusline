@@ -34,18 +34,6 @@ _rf_now() {
   fi
 }
 
-# A fonte entrega float — a statusline arquivada registra ter recebido
-# 14.000000000000002 — e a comparação inteira do bash aborta a função no meio
-# quando encontra casa decimal. Arredondar antes de comparar não é higiene, é o
-# que mantém a cor funcionando.
-_rf_round() {
-  local v="$1"
-  case "$v" in
-    ''|*[!0-9.]*) return 1 ;;
-  esac
-  LC_ALL=C printf '%.0f' "$v" 2>/dev/null
-}
-
 # Escala da original, verificada idêntica em docs/legacy/statusline-2.sh:256-260
 # e docs/legacy/statusline.sh:348-350. Não há quarto nível: acima de crit tudo é
 # vermelho, e a projeção carrega a gravidade.
@@ -72,7 +60,11 @@ _rf_window() {
   local int warn crit ucolor repoch rlabel show_reset mark
 
   [ -n "$pct" ] || return 1
-  int="$(_rf_round "$pct")" || return 1
+  # A fonte entrega float — a statusline arquivada registra ter recebido
+  # 14.000000000000002 — e a comparação inteira do bash aborta a função no meio
+  # quando encontra casa decimal. Arredondar antes de comparar não é higiene, é
+  # o que mantém a cor funcionando.
+  int="$(sl_round "$pct")" || return 1
 
   warn="$(sl_config_widget_opt rate-forecast warn "$SL_RF_DEFAULT_WARN")"
   crit="$(sl_config_widget_opt rate-forecast crit "$SL_RF_DEFAULT_CRIT")"
