@@ -380,8 +380,9 @@ milissegundos ou string ISO 8601.
 
 Os dois glifos respeitam `icons: false`.
 
-A aritmética da previsão vive num helper externo, para que você possa trocar o
-modelo de previsão sem tocar no plugin:
+A aritmética da previsão vive num processo à parte, `bin/rate-forecast.sh` — ela
+precisa de estado em disco entre repaints, e o widget não. O contrato é fechado,
+de modo que você pode trocar o modelo de previsão sem tocar no plugin:
 
 ```
 $SL_FORECAST_BIN <label> <used_pct> <resets_at_epoch> <window_seconds>
@@ -393,9 +394,27 @@ $SL_FORECAST_BIN <label> <used_pct> <resets_at_epoch> <window_seconds>
 estimar" e "estimei, está tranquilo" não muda nada para quem lê a statusline, e
 o helper continua distinguindo os dois para quem quiser inspecioná-lo.
 
-O `SL_FORECAST_BIN` aponta por padrão para `$HOME/.claude/rate-forecast.sh`. Sem
-ele, o widget ainda mostra o percentual atual — uma leitura degradada é melhor
-que leitura nenhuma.
+O `SL_FORECAST_BIN` aponta por padrão para o helper que acompanha o plugin, então
+a previsão funciona numa instalação limpa. Aponte-o para outro caminho para usar
+o seu. Sem helper algum, o widget ainda mostra o percentual atual — uma leitura
+degradada é melhor que leitura nenhuma.
+
+**Dois estimadores.** A média da janela enxerga o acumulado e reage devagar; o
+ritmo recente enxerga a rajada e esquece o que já foi queimado. O nível final é o
+arredondamento para cima da média dos dois, de modo que concordância vira sinal
+forte e divergência vira amarelo. O número mostrado é a pior das duas projeções:
+teto no número, confiança na cor.
+
+Os limiares de tempo do ritmo recente derivam da duração da janela — a janela
+móvel é um décimo dela, o span mínimo entre amostras é um sessenta avos, ambos
+com piso nos valores da janela de cinco horas. Uma constante em segundos não
+sobrevive à troca de janela: extrapolar um span de minutos sobre os dias que
+faltam numa janela de sete dias transforma ruído de medição em projeção de
+centenas por cento — foi assim que um único incremento de 1 ponto percentual, na
+resolução em que a statusline entregava o número, virou um `7d:25%→670%`. Ajuste
+com `CLAUDE_RATE_LOOKBACK` e `CLAUDE_RATE_MIN_SPAN` se quiser outra calibragem;
+`CLAUDE_RATE_WARN` e `CLAUDE_RATE_CRIT` movem os limiares de nível da projeção,
+que são `85` e `100`.
 
 A cor é semântica — a opção `color` não se aplica.
 

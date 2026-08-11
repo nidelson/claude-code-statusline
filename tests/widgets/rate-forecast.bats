@@ -309,6 +309,27 @@ EOF
   [[ "$output" == *"1h48m"* ]]
 }
 
+@test "the helper receives the percentage unrounded" {
+  # A projeção nasce de uma taxa, e uma taxa nasce de uma diferença. Entregar
+  # 13 no lugar de 13.6 daria ao helper um degrau de arredondamento para
+  # extrapolar sobre dias de janela.
+  export FAKE_FORECAST_OUT="none"
+  export FAKE_FORECAST_ARGS_FILE="$BATS_TEST_TMPDIR/args"
+  SL_5H_PCT=""
+  SL_7D_PCT="13.6"
+  run widget_rate_forecast_render
+  [ "$(cat "$BATS_TEST_TMPDIR/args")" = "7d 13.6 1800600000 604800" ]
+}
+
+@test "a fractional percentage still displays as a whole number" {
+  export FAKE_FORECAST_OUT="none"
+  SL_5H_PCT=""
+  SL_7D_PCT="13.6"
+  run widget_rate_forecast_render
+  [[ "$output" == *"14%"* ]]
+  [[ "$output" != *"13.6"* ]]
+}
+
 @test "reset false hides the times" {
   cat > "$BATS_TEST_TMPDIR/config.json" <<'EOF'
 {"version":1,"lines":[["rate-forecast"]],"widgets":{"rate-forecast":{"reset":false}}}
