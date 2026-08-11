@@ -85,11 +85,15 @@ _rf_window() {
     esac
   fi
 
+  # Projeção só aparece quando muda uma decisão. Um `→48%` verde ocupa espaço
+  # permanente para dizer "siga em frente", que já era o estado padrão de quem
+  # não vê aviso nenhum. Pior: com a projeção sempre presente, o olho aprende a
+  # ignorá-la, e o dia em que ela vira `→116%` chega sem contraste. `ok` sai
+  # pelo mesmo caminho de `none` — nos dois casos não há nada a dizer.
   case "$level" in
     crit) color="$(sl_color red)"    ;;
     warn) color="$(sl_color yellow)" ;;
-    ok)   color="$(sl_color green)"  ;;
-    *)    color=""                   ;;
+    *)    color=""; proj=""          ;;
   esac
 
   ucolor="$(_rf_usage_color "$int" "$warn" "$crit")"

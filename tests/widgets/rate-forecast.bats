@@ -43,9 +43,11 @@ setup() {
   [[ "$output" == *"7d:"* ]]
   [[ "$output" == *"13%"* ]]
   [[ "$output" != *"5h:"* ]]
-  # O separador entre janelas vai cercado de espaços; o `·` interno do rótulo de
-  # reset não vai. Só o primeiro seria órfão aqui.
-  [[ "$output" != *" · "* ]]
+  # O separador entre janelas sai esmaecido: espaço, escape, glifo, reset,
+  # espaço. O `·` interno do rótulo de reset não leva espaços em volta, então os
+  # dois não se confundem. Procurar por " · " cru nunca casaria com nenhum dos
+  # dois — e uma asserção que nunca casa também nunca falha.
+  [[ "$output" != *$' \033[2m·\033[0m '* ]]
 }
 
 @test "level none shows the percentage only" {
@@ -73,10 +75,22 @@ setup() {
   [[ "$output" == *$'\033[33m'* ]]
 }
 
-@test "level ok paints green" {
+@test "level ok hides the projection" {
+  # Uma projeção tranquila não muda decisão nenhuma: quem não vê aviso já sabia
+  # seguir em frente. A seta fica reservada para o que pede reação, e o olho não
+  # aprende a ignorá-la.
   export FAKE_FORECAST_OUT="ok 55"
   run widget_rate_forecast_render
-  [[ "$output" == *$'\033[32m'* ]]
+  [[ "$output" == *"42%"* ]]
+  [[ "$output" != *"55%"* ]]
+  [[ "$output" != *"→"* ]]
+}
+
+@test "level ok still paints the usage on its own scale" {
+  export FAKE_FORECAST_OUT="ok 55"
+  SL_5H_PCT="85"
+  run widget_rate_forecast_render
+  [[ "$output" == *$'\033[31m'"85%"* ]]
 }
 
 @test "missing helper still shows the percentage" {
@@ -227,6 +241,9 @@ EOF
   [[ "$output" == *"42%"* ]]
   [[ "$output" == *"7d:"* ]]
   [[ "$output" == *"13%"* ]]
+  # Contraparte positiva da asserção de separador órfão acima: sem esta, aquela
+  # poderia estar procurando por algo que nunca existe e ninguém notaria.
+  [[ "$output" == *$' \033[2m·\033[0m '* ]]
 }
 
 @test "the five-hour window comes first" {
