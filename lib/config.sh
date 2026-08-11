@@ -4,8 +4,17 @@
 # consertar o próprio arquivo. A degradação acontece só em memória, sinalizada
 # por SL_CONFIG_WARN para que a statusline mostre um marcador discreto.
 
-SL_CONFIG_DEFAULT_LINES='model git
-rate-forecast'
+# Mantenha em sincronia com o Passo 5 de commands/setup.md, que escreve este
+# mesmo conjunto no arquivo do usuário. São dois caminhos para o mesmo default —
+# quem roda o /setup recebe um arquivo, quem só aponta o statusLine.command para
+# o entrypoint cai aqui — e vê-los divergir seria descobrir que a statusline
+# muda conforme como foi instalada.
+#
+# As opções por widget não cabem aqui: este fallback é uma lista de linhas, não
+# um JSON. Quem chega por este caminho recebe os widgets nos padrões deles, o
+# que é a degradação certa — sem arquivo, não há preferência a respeitar.
+SL_CONFIG_DEFAULT_LINES='repo branch git-status worktree velocity cache model cost
+context rate-forecast flow sprint'
 SL_CONFIG_DEFAULT_SEP='|'
 # Ícones ligados por padrão. Os glifos usados são Unicode padrão (✻, ◆), não
 # Nerd Font — renderizam em qualquer terminal moderno sem exigir fonte extra.
