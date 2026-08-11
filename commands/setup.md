@@ -41,10 +41,18 @@ Faça merge no JSON existente, preservando todas as outras chaves:
   "statusLine": {
     "type": "command",
     "command": "bash /caminho/absoluto/para/bin/statusline.sh",
+    "padding": 0,
     "refreshInterval": 5
   }
 }
 ```
+
+O `padding` é escrito explicitamente como `0`. O padrão do Claude Code é `2`,
+que recua a statusline em duas colunas — recuo que faz sentido para uma linha
+curta de texto, e atrapalha aqui: os widgets já compõem o próprio espaçamento
+com separadores, e a primeira linha do default passa de oitenta colunas em
+repositório com nome longo. Duas colunas a menos de largura útil é o suficiente
+para empurrar o último widget para fora em terminal estreito.
 
 Se já existir uma chave `statusLine`, mostre o valor atual ao usuário e pergunte
 antes de substituir — pode ser uma statusline que ele queira manter.
