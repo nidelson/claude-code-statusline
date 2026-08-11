@@ -4,6 +4,7 @@ setup() {
   export SL_CACHE_DIR="$BATS_TEST_TMPDIR/cache"
   source "$PROJECT_ROOT/lib/colors.sh"
   source "$PROJECT_ROOT/lib/core.sh"
+  source "$PROJECT_ROOT/lib/num.sh"
   source "$PROJECT_ROOT/lib/cache.sh"
   source "$PROJECT_ROOT/lib/gitdir.sh"
   source "$PROJECT_ROOT/lib/config.sh"

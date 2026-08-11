@@ -4,6 +4,7 @@ setup() {
   export SL_CACHE_DIR="$BATS_TEST_TMPDIR/cache"
   source "$PROJECT_ROOT/lib/colors.sh"
   source "$PROJECT_ROOT/lib/core.sh"
+  source "$PROJECT_ROOT/lib/num.sh"
   source "$PROJECT_ROOT/lib/cache.sh"
   source "$PROJECT_ROOT/lib/config.sh"
   source "$PROJECT_ROOT/widgets/flow.sh"
@@ -65,15 +66,31 @@ quiet_config() {
   write_cache
   quiet_config
   run widget_flow_render
-  [[ "$output" == *"flow:34%→58%"* ]]
+  # 34.7 e 58.2 arredondados, não truncados.
+  [[ "$output" == *"flow:35%→58%"* ]]
 }
 
-@test "floors the percentages instead of showing decimals" {
+@test "rounds the percentages to whole numbers" {
   write_cache 34.9 58.9
   quiet_config
   run widget_flow_render
-  [[ "$output" == *"34%"* ]]
+  [[ "$output" == *"35%"* ]]
+  [[ "$output" == *"59%"* ]]
   [[ "$output" != *"."* ]]
+}
+
+@test "a null projection shows no arrow at all" {
+  cat > "$JSON" <<'EOF'
+{"ok":true,"fetched_at":1786240000,
+ "budget":{"percentage":24.30,"projected_percentage":92.33},
+ "requests":{"percentage":13.96,"projected_percentage":null,"unlimited":true}}
+EOF
+  use_config '{"widgets":{"flow":{"cache":"'"$JSON"'","metric":"requests","refresh":false}}}'
+  run widget_flow_render
+  # Projeção nula é ausência de projeção, não projeção de zero. `→0%` afirmaria
+  # um número que a API nunca devolveu.
+  [[ "$output" == *"req:14%"* ]]
+  [[ "$output" != *"→"* ]]
 }
 
 @test "paints green on a low forecast" {

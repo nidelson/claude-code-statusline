@@ -62,9 +62,7 @@ widget_context_render() {
   case "$used" in ""|*[!0-9]*) used=0 ;; esac
   [ "$size" -gt 0 ] || return 0
 
-  # +size/2 antes de dividir arredonda ao inteiro mais próximo em aritmética
-  # inteira, sem depender de printf ou de ponto flutuante.
-  pct=$(( (used * 100 + size / 2) / size ))
+  pct="$(sl_pct "$used" "$size")" || return 0
 
   width="$(sl_config_widget_opt context width)"
   case "$width" in

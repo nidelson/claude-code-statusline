@@ -3,6 +3,7 @@ load ../helper
 setup() {
   source "$PROJECT_ROOT/lib/colors.sh"
   source "$PROJECT_ROOT/lib/core.sh"
+  source "$PROJECT_ROOT/lib/num.sh"
   source "$PROJECT_ROOT/lib/config.sh"
   source "$PROJECT_ROOT/lib/timefmt.sh"
   source "$PROJECT_ROOT/widgets/rate-forecast.sh"

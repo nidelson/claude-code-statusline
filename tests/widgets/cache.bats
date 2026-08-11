@@ -3,6 +3,7 @@ load ../helper
 setup() {
   source "$PROJECT_ROOT/lib/colors.sh"
   source "$PROJECT_ROOT/lib/core.sh"
+  source "$PROJECT_ROOT/lib/num.sh"
   source "$PROJECT_ROOT/lib/config.sh"
   source "$PROJECT_ROOT/widgets/cache.sh"
   SL_CONFIG_RAW=""

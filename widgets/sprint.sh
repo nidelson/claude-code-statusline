@@ -60,7 +60,7 @@ _sprint_compute() {
   case "$total" in ""|*[!0-9]*) return 0 ;; esac
   [ "$total" -gt 0 ] || return 0
 
-  pct=$(( completed * 100 / total ))
+  pct="$(sl_pct "$completed" "$total")" || return 0
   if [ "$pct" -ge 80 ]; then
     out="$(sl_color green)"
   elif [ "$pct" -ge 40 ]; then
