@@ -3,10 +3,12 @@
 # A cor aqui é semântica — codifica o nível do risco, não uma preferência do
 # usuário — então o widget declara --self-color e pinta a si mesmo.
 #
-# A matemática da previsão vive em um helper externo (SL_FORECAST_BIN). Quando
-# esse helper não existe, o widget ainda mostra o percentual atual: uma leitura
-# degradada é melhor que leitura nenhuma. Essa é a razão de o widget não abortar
-# em nenhum dos caminhos de erro.
+# A matemática da previsão vive em bin/rate-forecast.sh, um processo à parte —
+# ela precisa de estado em disco entre repaints, e o widget não. O caminho é
+# trocável por SL_FORECAST_BIN, e um helper ausente não interrompe nada: o
+# widget ainda mostra o percentual atual, porque leitura degradada é melhor que
+# leitura nenhuma. Essa é a razão de o widget não abortar em nenhum dos caminhos
+# de erro.
 #
 # Contrato do helper:
 #   <bin> <label> <used_pct> <resets_at_epoch> <duração_janela_s>
@@ -19,7 +21,10 @@ register_widget rate-forecast \
   --self-color \
   --desc   "Rate limit window usage with overflow forecast"
 
-: "${SL_FORECAST_BIN:=$HOME/.claude/rate-forecast.sh}"
+# Mesmo caminho que widgets/flow.sh usa para o helper dele: a raiz resolvida por
+# bin/statusline.sh, com o local de instalação como último recurso para quem
+# carrega o widget fora dela.
+: "${SL_FORECAST_BIN:=${SL_ROOT:-$HOME/.claude}/bin/rate-forecast.sh}"
 
 SL_RF_DEFAULT_WARN=50
 SL_RF_DEFAULT_CRIT=80
@@ -73,7 +78,11 @@ _rf_window() {
 
   level="none"; proj=""
   if [ -x "$SL_FORECAST_BIN" ]; then
-    raw="$("$SL_FORECAST_BIN" "$window" "$int" "$reset" \
+    # O helper recebe `pct`, não `int`: ele deriva uma taxa da diferença entre
+    # duas leituras, e o arredondamento que serve à exibição seria, para ele,
+    # um degrau de 1 ponto percentual inteiro — extrapolado sobre o tempo
+    # restante da janela, ruído de arredondamento vira projeção.
+    raw="$("$SL_FORECAST_BIN" "$window" "$pct" "$reset" \
            "$(_forecast_window_seconds "$window")" 2>/dev/null)" || raw=""
     # set -- divide na primeira palavra sem precisar de array.
     set -- $raw

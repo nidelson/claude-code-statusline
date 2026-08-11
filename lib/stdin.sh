@@ -23,14 +23,21 @@ sl_parse_stdin() {
     @sh "SL_CTX_SIZE=\(.context_window.context_window_size // 0)",
     @sh "SL_CTX_USED=\(.context_window.total_input_tokens // 0)",
     # A API manda os percentuais como float, e o binário morde: o que chega é
-    # 55.00000000000001, não 55. Arredondar aqui, e não em cada widget, é o que
-    # garante que todo consumidor veja o mesmo número — inclusive o helper de
-    # previsão, que recebe o percentual como argumento.
+    # 55.00000000000001, não 55. Cortar em duas casas mata essa cauda sem jogar
+    # fora a precisão que o número de fato carrega — 13.6 continua 13.6.
+    #
+    # Arredondar ao inteiro aqui, como se fazia antes, resolvia a exibição e
+    # cobrava caro de quem calcula: o helper de previsão deriva uma taxa a
+    # partir da diferença entre duas leituras, e com o valor inteiro a menor
+    # diferença observável é 1 ponto percentual inteiro. Extrapolado sobre os
+    # dias restantes da janela de 7 dias, esse degrau de arredondamento vira uma
+    # projeção de centenas por cento. Quem exibe arredonda — `sl_round`, em
+    # widgets/rate-forecast.sh — e quem calcula recebe o número como veio.
     #
     # O `if type=="number"` protege o campo ausente: `// ""` já resolveu para
-    # string vazia, e `round` em string é erro que derruba a passada inteira.
-    @sh "SL_5H_PCT=\(.rate_limits.five_hour.used_percentage // "" | if type == "number" then round else . end)",
-    @sh "SL_7D_PCT=\(.rate_limits.seven_day.used_percentage // "" | if type == "number" then round else . end)",
+    # string vazia, e a aritmética em string é erro que derruba a passada inteira.
+    @sh "SL_5H_PCT=\(.rate_limits.five_hour.used_percentage // "" | if type == "number" then (. * 100 | round) / 100 else . end)",
+    @sh "SL_7D_PCT=\(.rate_limits.seven_day.used_percentage // "" | if type == "number" then (. * 100 | round) / 100 else . end)",
     @sh "SL_5H_RESET=\(.rate_limits.five_hour.resets_at // "")",
     @sh "SL_7D_RESET=\(.rate_limits.seven_day.resets_at // "")"
   ' 2>/dev/null)" || assignments=""

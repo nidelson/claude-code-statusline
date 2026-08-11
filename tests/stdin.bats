@@ -22,16 +22,24 @@ setup() {
   [ "$SL_5H_RESET" = "1800000000" ]
 }
 
-@test "rounds a fractional rate limit percentage" {
+@test "drops the floating point tail from a rate limit percentage" {
   # A API manda float, e o binário morde: 55.00000000000001 é o que de fato
-  # chega. Sem arredondar, a statusline exibe o erro de ponto flutuante inteiro.
+  # chega. Sem cortar, a statusline exibe o erro de ponto flutuante inteiro.
   sl_parse_stdin '{"rate_limits":{"five_hour":{"used_percentage":55.00000000000001}}}'
   [ "$SL_5H_PCT" = "55" ]
 }
 
-@test "rounds the seven day percentage up when it should" {
+@test "keeps the real precision of a fractional percentage" {
+  # Cortar em duas casas mata a cauda binária sem inventar um inteiro. Quem
+  # exibe arredonda; quem deriva uma taxa precisa do número como veio, porque
+  # para ele um degrau de 1 ponto percentual é ruído extrapolado sobre a janela.
   sl_parse_stdin '{"rate_limits":{"seven_day":{"used_percentage":13.6}}}'
-  [ "$SL_7D_PCT" = "14" ]
+  [ "$SL_7D_PCT" = "13.6" ]
+}
+
+@test "keeps two decimal places and no more" {
+  sl_parse_stdin '{"rate_limits":{"seven_day":{"used_percentage":24.4832}}}'
+  [ "$SL_7D_PCT" = "24.48" ]
 }
 
 @test "an absent percentage stays empty instead of becoming zero" {
