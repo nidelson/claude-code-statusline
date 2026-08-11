@@ -12,6 +12,12 @@ setup() {
   SL_5H_RESET="1800000000"
   SL_7D_PCT="13"
   SL_7D_RESET="1800600000"
+  # Congela o instante para toda a suíte. Sem isso a contagem regressiva é
+  # calculada contra o relógio real e muda a cada dia: os resets acima ficam a
+  # centenas de dias daqui, e uma regressiva como "157d6h" contém "7d" como
+  # substring — o suficiente para derrubar uma asserção que só queria saber se o
+  # rótulo da janela de sete dias estava presente.
+  SL_NOW=1799990000
 }
 
 @test "registers itself on load" {
@@ -35,7 +41,7 @@ setup() {
   run widget_rate_forecast_render
   [[ "$output" == *"7d:"* ]]
   [[ "$output" == *"13%"* ]]
-  [[ "$output" != *"5h"* ]]
+  [[ "$output" != *"5h:"* ]]
   # O separador entre janelas vai cercado de espaços; o `·` interno do rótulo de
   # reset não vai. Só o primeiro seria órfão aqui.
   [[ "$output" != *" · "* ]]
@@ -236,7 +242,9 @@ EOF
   export FAKE_FORECAST_OUT="none"
   run widget_rate_forecast_render
   [[ "$output" == *"5h:"* ]]
-  [[ "$output" != *"7d"* ]]
+  # Com dois-pontos: é o rótulo da janela que não pode aparecer. Sem eles, a
+  # asserção casaria com um "7d" vindo de dentro de uma contagem regressiva.
+  [[ "$output" != *"7d:"* ]]
 }
 
 @test "each window is coloured on its own figures" {
