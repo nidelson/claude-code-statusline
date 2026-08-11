@@ -1,3 +1,11 @@
 .DS_Store
 *.log
 tmp/
+
+# Estado local do Claude Code: as permissões desta máquina, em
+# settings.local.json, e as worktrees em uso. Nada disso vale para outra pessoa.
+#
+# O que este repositório PUBLICA para o Claude Code não mora aqui: fica em
+# .claude-plugin/, commands/ e skills/, na raiz. Por isso dá para ignorar o
+# diretório inteiro sem esconder nada do plugin.
+.claude/
