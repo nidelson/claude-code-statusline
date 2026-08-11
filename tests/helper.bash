@@ -21,3 +21,14 @@ export PROJECT_ROOT
 # intermediárias. O job Linux do CI é o portão real. Ao escrever um teste novo,
 # vale rodá-lo com a asserção invertida uma vez para confirmar que ele sabe
 # falhar — sobretudo quando ela não é a última linha.
+
+# Remove os escapes de cor, para quando o que está sob teste é a ORDEM dos
+# pedaços e não a cor deles. Um `[[ $out == *"92% ⟳ 20d"* ]]` só é escrevível
+# assim: no output cru há um reset entre os dois.
+#
+# LC_ALL=C não é detalhe. Sem ele o sed do BSD tenta interpretar o UTF-8 dos
+# emoji e aborta com "illegal byte sequence"; com ele o padrão — que é todo
+# ASCII — casa por byte e os glifos multibyte passam intactos.
+sl_test_plain() {
+  printf '%s' "$1" | LC_ALL=C sed $'s/\033\\[[0-9;]*m//g'
+}

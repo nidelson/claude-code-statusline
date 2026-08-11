@@ -96,6 +96,10 @@ sl_epoch_normalize() {
   printf '%s' "$v"
 }
 
+# Duas unidades, sempre as duas maiores que não são zero. A menor é omitida
+# quando zerada: `20d0h` gasta duas colunas para dizer "e mais zero horas", e
+# `3h0m` faz o mesmo uma faixa abaixo. Quando ela não é zero, fica — `1d3h` diz
+# algo que `1d` não diz.
 sl_fmt_countdown() {
   local rem="$1" d h m
   case "$rem" in
@@ -104,8 +108,14 @@ sl_fmt_countdown() {
   d=$(( rem / 86400 ))
   h=$(( (rem % 86400) / 3600 ))
   m=$(( (rem % 3600) / 60 ))
-  if   [ "$d" -gt 0 ]; then printf '%dd%dh' "$d" "$h"
-  elif [ "$h" -gt 0 ]; then printf '%dh%dm' "$h" "$m"
+  if [ "$d" -gt 0 ]; then
+    if [ "$h" -gt 0 ]; then printf '%dd%dh' "$d" "$h"
+    else                    printf '%dd' "$d"
+    fi
+  elif [ "$h" -gt 0 ]; then
+    if [ "$m" -gt 0 ]; then printf '%dh%dm' "$h" "$m"
+    else                    printf '%dh' "$h"
+    fi
   elif [ "$m" -gt 0 ]; then printf '%dm' "$m"
   else                      printf '<1m'
   fi
@@ -121,10 +131,18 @@ sl_reset_label() {
 
   # A escolha é pelo tempo restante, não pelo tipo de janela: uma janela de sete
   # dias que reseta daqui a quatro horas quer o horário, não o nome do dia.
+  #
+  # Acima de uma semana o nome do dia deixa de identificar: "Tue" a vinte dias de
+  # distância descreve três terças diferentes, e quem lê não tem como escolher.
+  # Daí a terceira faixa, que atende cotas de renovação mensal como a do Flow. O
+  # `%b` sai em inglês porque sl_date_fmt força LC_ALL=C — o mesmo motivo pelo
+  # qual `%a` já sai "Tue" e não "ter".
   if [ "$rem" -lt 86400 ]; then
     stamp="$(sl_date_fmt "$epoch" '%H:%M')" || return 1
-  else
+  elif [ "$rem" -lt 604800 ]; then
     stamp="$(sl_date_fmt "$epoch" '%a')" || return 1
+  else
+    stamp="$(sl_date_fmt "$epoch" '%d%b')" || return 1
   fi
   [ -n "$stamp" ] || return 1
 

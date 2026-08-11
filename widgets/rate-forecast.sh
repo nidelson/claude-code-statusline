@@ -115,10 +115,15 @@ _rf_window() {
   [ -n "$proj" ] && out="${out}${color}→${proj}%${SL_RESET}"
 
   # Um reset ilegível apaga só a si mesmo: percentual e projeção sobrevivem.
+  #
+  # O espaço depois do `⟳` não é folga: o glifo tem largura ambígua em Unicode e,
+  # colado a um dígito, disputa a mesma célula em boa parte dos terminais. O `⏱`
+  # que abre a linha já vem com espaço pelo mesmo motivo. Com `icons: false` o
+  # glifo some inteiro, e o espaço com ele.
   show_reset="$(sl_config_widget_opt rate-forecast reset true)"
   if [ "$show_reset" != "false" ]; then
     mark=""
-    [ "${SL_CONFIG_ICONS:-1}" = "1" ] && mark="⟳"
+    [ "${SL_CONFIG_ICONS:-1}" = "1" ] && mark="⟳ "
     repoch="$(sl_epoch_normalize "$reset")" \
       && rlabel="$(sl_reset_label "$repoch" "$(_rf_now)")" \
       && out="${out} ${SL_DIM}${mark}${rlabel}${SL_RESET}"

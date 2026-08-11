@@ -309,6 +309,16 @@ EOF
   [[ "$output" == *"1h48m"* ]]
 }
 
+@test "the reset mark is separated from the time" {
+  # `⟳` tem largura ambígua em Unicode e, colado a um dígito, disputa a mesma
+  # célula em boa parte dos terminais.
+  export FAKE_FORECAST_OUT="none"
+  SL_NOW=1800000000
+  SL_5H_RESET=1800006480
+  run widget_rate_forecast_render
+  [[ "$output" =~ ⟳\ [0-9]{2}: ]]
+}
+
 @test "the helper receives the percentage unrounded" {
   # A projeção nasce de uma taxa, e uma taxa nasce de uma diferença. Entregar
   # 13 no lugar de 13.6 daria ao helper um degrau de arredondamento para

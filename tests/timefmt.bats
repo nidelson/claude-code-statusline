@@ -62,6 +62,23 @@ setup() {
   [ "$output" = "48m" ]
 }
 
+# A unidade menor só desaparece quando é zero — `20d0h` gastava duas colunas
+# para dizer "e mais zero horas". `1d1h` prova que ela não é cortada sempre.
+@test "drops a zero hour from the day countdown" {
+  run sl_fmt_countdown 1728000
+  [ "$output" = "20d" ]
+}
+
+@test "drops a zero minute from the hour countdown" {
+  run sl_fmt_countdown 10800
+  [ "$output" = "3h" ]
+}
+
+@test "keeps a single hour that is not zero" {
+  run sl_fmt_countdown 90000
+  [ "$output" = "1d1h" ]
+}
+
 @test "counts down under a minute" {
   run sl_fmt_countdown 30
   [ "$output" = "<1m" ]
@@ -82,6 +99,21 @@ setup() {
   run sl_reset_label 1800454000 1800000000
   [ "$status" -eq 0 ]
   [[ "$output" =~ ^[A-Za-z]{3}.5d6h$ ]]
+}
+
+# Uma semana é o limite do nome do dia: além dela "Tue" descreve várias terças,
+# e quem lê não tem como escolher. Os dois testes marcam os dois lados da
+# fronteira, para que mexer nela quebre algo.
+@test "reset just under a week still shows the weekday" {
+  run sl_reset_label 1800604799 1800000000
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ^[A-Za-z]{3}.6d23h$ ]]
+}
+
+@test "reset over a week shows the day and month" {
+  run sl_reset_label 1801728000 1800000000
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ^[0-9]{2}[A-Za-z]{3}.20d$ ]]
 }
 
 @test "reset in the past is refused" {

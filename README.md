@@ -337,7 +337,7 @@ As duas janelas de rate limit, cada uma com uso atual, previsão de estouro,
 horário do reset e contagem regressiva:
 
 ```
-⏱ 5h:31%→93% ⟳02:10·1h48m · 7d:15% ⟳Fri·5d6h
+⏱ 5h:31%→93% ⟳ 02:10·1h48m · 7d:15% ⟳ Fri·5d6h
 ```
 
 A janela de cinco horas responde "posso continuar agora"; a de sete dias responde
@@ -368,10 +368,16 @@ frente", que já era o estado padrão de quem não vê aviso — e o olho que ap
 ignorar a seta deixa de ver o dia em que ela vira `→116%`. Silêncio aqui é
 informação: seta na tela significa que alguma coisa mudou.
 
-O reset mostra o horário abaixo de 24 horas e o dia da semana acima disso,
-escolhido pelo tempo restante e não pela janela, de modo que uma janela de sete
-dias que reseta em quatro horas ainda mostra a hora. Horário e regressiva ficam
+O reset mostra o horário abaixo de 24 horas, o dia da semana entre um dia e uma
+semana, e dia e mês acima disso — escolhido pelo tempo restante e não pela
+janela, de modo que uma janela de sete dias que reseta em quatro horas ainda
+mostra a hora. Acima de uma semana o nome do dia deixaria de identificar: "Tue"
+a vinte dias descreve três terças diferentes. Horário e regressiva ficam
 esmaecidos: são contexto para os números, não concorrentes deles.
+
+A regressiva mostra duas unidades, e omite a menor quando ela é zero: `20d` em
+vez de `20d0h`, `3h` em vez de `3h0m`. Quando ela não é zero, fica — `1d3h` diz
+o que `1d` não diz.
 
 Qualquer pedaço ilegível apaga só a si mesmo. Um reset malformado descarta os
 tempos e mantém o percentual; um helper ausente descarta a projeção e mantém
@@ -462,17 +468,19 @@ A cor é semântica — a opção `color` não se aplica.
 
 ### `flow`
 
-Consumo na CI&T Flow Platform: as duas cotas, cada uma com uso atual e previsão
-de estouro, mais um segmento de status para o que não cabe num percentual.
+Consumo na CI&T Flow Platform: as duas cotas, cada uma com uso atual, previsão de
+estouro e data de renovação, mais um segmento de status para o que não cabe num
+percentual.
 
 ```
-💰 24%→92% · 💬 14% · ∞
+💰 24%→92% ⟳ 31Aug·20d · 💬 14% · ∞
 ```
 
 | Opção | Valores | Padrão |
 |---|---|---|
 | `metric` | `budget`, `requests`; omita para mostrar as duas | omitido |
 | `separator` | texto entre os segmentos | `·` |
+| `renewal` | `true`, `false` — mostra a data de renovação e a regressiva | `true` |
 | `ttl` | segundos entre buscas | `300` |
 | `refresh` | `true`, `false` — se deve buscar | `true` |
 | `cache` | caminho do JSON buscado | `$XDG_CACHE_HOME/flow-consumption.json` |
@@ -486,6 +494,32 @@ Anthropic, e ela pertence à mesma linha que todo o resto.
 janelas: `budget` conta dinheiro, `requests` conta chamadas, e estourar uma não
 diz nada sobre a outra. As duas ficam visíveis, e `metric` filtra em vez de
 escolher — deixe de fora para ver ambas, defina para ver só uma.
+
+**A renovação mora onde ela decide alguma coisa.** A data dá escala ao
+percentual: `24%` não diz se sobra um dia ou três semanas para gastar o resto, e
+é essa distância que decide se dá para manter o ritmo. Quando as duas cotas
+renovam no mesmo instante — o caso de uma assinatura mensal única — repetir a
+mesma data nos dois segmentos gastaria treze colunas para não dizer nada novo.
+Então ela vai para onde serve:
+
+```
+só budget em alerta     💰 24%→92% ⟳ 31Aug·20d · 💬 14%
+só requests em alerta   💰 24% · 💬 88%→110% ⟳ 31Aug·20d
+ambos no mesmo estado   💰 24% · 💬 14% · ⟳ 31Aug·20d
+datas diferentes        💰 24%→92% ⟳ 31Aug·20d · 💬 14% ⟳ 05Sep·25d
+```
+
+"Em alerta" é ter qualquer coisa amarela ou vermelha no segmento: uso a partir de
+80% **ou** projeção a partir de 80%. Um budget em 85% sem projeção nenhuma puxa a
+data do mesmo jeito, porque 85% consumido com vinte dias pela frente é exatamente
+a pergunta que a data responde.
+
+O formato é o mesmo do `rate-forecast`, inclusive o `⟳`: horário abaixo de 24
+horas, dia da semana até uma semana, dia e mês acima disso. A regressiva omite a
+unidade menor quando ela é zero — `20d`, não `20d0h`.
+
+Uma renovação que não dá para formatar apaga só a si mesma: percentual e projeção
+sobrevivem. Payload sem o campo renderiza como se a opção estivesse desligada.
 
 **O terceiro segmento é o status**, e só aparece quando tem o que dizer:
 
@@ -508,8 +542,8 @@ anterior nenhuma, o aviso aparece sozinho.
 Todos os glifos respeitam `icons: false`, e nesse modo viram palavras inteiras:
 
 ```
-icons: true    💰 24%→92% · 💬 14% · ∞
-icons: false   budget:24%→92% · requests:14% · unlimited
+icons: true    💰 24%→92% ⟳ 31Aug·20d · 💬 14% · ∞
+icons: false   budget:24%→92% 31Aug·20d · requests:14% · unlimited
 ```
 
 `budget:` e `requests:` são mais longos que uma abreviação seria, de propósito:
