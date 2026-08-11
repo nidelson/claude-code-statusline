@@ -124,12 +124,68 @@ _flow_color() {
   fi
 }
 
-# Um segmento: rótulo, uso e — só quando há o que dizer — projeção. Retorna 1
-# quando não há número utilizável, para que o chamador saiba não emitir
-# separador.
+# Tempo é entrada, não relógio — mesma razão de widgets/rate-forecast.sh: sem
+# isso a suíte passaria a depender do dia em que roda.
+_flow_now() {
+  if [ -n "$SL_NOW" ]; then
+    printf '%s' "$SL_NOW"
+  else
+    date +%s
+  fi
+}
+
+# `⟳ <data>·<regressiva>` esmaecido, a partir do epoch cru. Retorna 1 quando o
+# epoch não veio, é ilegível ou já passou — uma renovação que não dá para
+# formatar apaga só a si mesma.
+#
+# O espaço depois do glifo não é folga: `⟳` tem largura ambígua em Unicode, e
+# colado a um `3` ele disputa a mesma célula em boa parte dos terminais. Os
+# outros glifos deste widget já carregam o espaço junto ('💰 ', '💬 '), então
+# aqui ele é a regra, não a exceção. Com `icons: false` o glifo some inteiro, e
+# o espaço com ele.
+_flow_renewal_label() {
+  local epoch="$1" mark="" norm label
+  [ "$epoch" != "-" ] || return 1
+  [ "${SL_CONFIG_ICONS:-1}" = "1" ] && mark="⟳ "
+  norm="$(sl_epoch_normalize "$epoch")" || return 1
+  label="$(sl_reset_label "$norm" "$(_flow_now)")" || return 1
+  printf '%s' "${SL_DIM}${mark}${label}${SL_RESET}"
+}
+
+# Uma passada de jq responde às duas perguntas de layout, antes de qualquer
+# segmento ser desenhado: as duas cotas renovam juntas, e qual delas está
+# pedindo atenção.
+#
+# Saída: "<renov_budget> <renov_requests> <alerta_budget> <alerta_requests>",
+# com `-` para renovação ausente e 0/1 para o alerta. Payload ilegível responde
+# "nada e ninguém" em vez de falhar, porque a decisão de layout não pode derrubar
+# a linha inteira.
+#
+# Alerta é "há algo amarelo ou vermelho neste segmento": uso acima do limiar, ou
+# projeção acima dele — que é exatamente a condição para a projeção aparecer. O
+# `round` do jq empata com o `%.0f` de sl_round em todo valor que decide o
+# limiar, então os dois lados concordam sobre quem está em alerta.
+_flow_layout() {
+  local file="$1" warn="$2"
+  jq -r --argjson warn "$warn" '
+    def alert($m):
+      if ((.[$m].percentage // 0 | round) >= $warn
+          or (.[$m].projected_percentage // 0 | round) >= $warn)
+      then "1" else "0" end;
+    if (.ok | not) then "- - 0 0"
+    else "\(.budget.renewal_epoch // "-") \(.requests.renewal_epoch // "-") \(alert("budget")) \(alert("requests"))"
+    end' "$file" 2>/dev/null || printf '%s' '- - 0 0'
+}
+
+# Um segmento: rótulo, uso e — só quando há o que dizer — projeção e renovação.
+# Retorna 1 quando não há número utilizável, para que o chamador saiba não
+# emitir separador.
+#
+# `skip_renewal` não-vazio significa que o chamador já vai mostrar essa data em
+# outro lugar.
 _flow_segment() {
-  local file="$1" metric="$2"
-  local label raw used proj out ucolor pcolor
+  local file="$1" metric="$2" skip_renewal="$3"
+  local label raw used proj renewal out ucolor pcolor rlabel
 
   label="$(_flow_label "$metric")"
 
@@ -146,20 +202,25 @@ _flow_segment() {
   raw="$(jq -r --arg m "$metric" '
     if (.ok | not) then empty
     elif (.[$m] | not) then empty
-    else "\(.[$m].percentage // 0) \(.[$m].projected_percentage // "-")"
+    else "\(.[$m].percentage // 0) \(.[$m].projected_percentage // "-") \(.[$m].renewal_epoch // "-")"
     end' "$file" 2>/dev/null)" || return 1
   [ -n "$raw" ] || return 1
 
-  # set -- divide na primeira palavra sem precisar de array.
+  # set -- divide na primeira palavra sem precisar de array. Os posicionais são
+  # copiados de uma vez porque o que vem depois chama funções em substituição de
+  # comando, e ler `$3` no meio disso é mais frágil do que precisa ser.
   set -- $raw
-  used="$(sl_round "$1")" || return 1
-  # `-` é o sentinela de "sem projeção". Um `// 0` no jq transformaria um
+  # `-` é o sentinela de "não veio no payload". Um `// 0` no jq transformaria um
   # projected_percentage nulo em `→0%` — uma projeção de zero por cento, que a
-  # API nunca afirmou.
-  if [ "$2" = "-" ]; then
+  # API nunca afirmou — e um renewal_epoch nulo na data de 1970.
+  proj="$2"
+  renewal="$3"
+
+  used="$(sl_round "$1")" || return 1
+  if [ "$proj" = "-" ]; then
     proj=""
   else
-    proj="$(sl_round "$2")" || proj=""
+    proj="$(sl_round "$proj")" || proj=""
   fi
 
   ucolor="$(_flow_color "$used")"
@@ -177,6 +238,15 @@ _flow_segment() {
   if [ -n "$proj" ] && [ "$proj" -ge "$SL_FLOW_WARN" ]; then
     pcolor="$(_flow_color "$proj")"
     out="${out}${pcolor}→${proj}%${SL_RESET}"
+  fi
+
+  # A renovação vem logo depois do percentual porque é o que dá escala a ele: um
+  # `24%` não diz se sobra um dia ou três semanas para gastar o resto, e é essa
+  # distância que decide se dá para manter o ritmo. Mesmo `⟳` e mesmo formato do
+  # rate-forecast — a pergunta é a mesma, então a resposta se parece.
+  if [ -z "$skip_renewal" ] &&
+     [ "$(sl_config_widget_opt flow renewal true)" != "false" ]; then
+    rlabel="$(_flow_renewal_label "$renewal")" && out="${out} ${rlabel}"
   fi
 
   printf '%s' "$out"
@@ -233,13 +303,43 @@ _flow_status() {
 
 _flow_compute() {
   local file="$1" metric="$2" sep="$3" piece line=""
+  local shared="" skip_b="" skip_r="" rb rr ab ar
+
+  # Onde a data de renovação mora depende de para quem ela decide alguma coisa.
+  #
+  # Ela dá escala ao percentual: `24%` não diz se sobra um dia ou três semanas
+  # para gastar o resto. Quando as duas cotas renovam no mesmo instante — o caso
+  # de uma assinatura mensal única — repetir a mesma data nos dois segmentos
+  # gasta treze colunas para não dizer nada novo. Mas apenas empurrá-la para o
+  # fim a afasta justamente do número que estava pedindo atenção.
+  #
+  # Então: se exatamente um dos dois está em alerta, a data cola nele, porque é
+  # ali que a distância até a renovação muda uma decisão. Se os dois estão no
+  # mesmo estado — ambos calmos ou ambos em alerta — ela não pertence mais a um
+  # que ao outro, e vira um segmento próprio depois dos números.
+  #
+  # Datas diferentes descrevem cotas diferentes: cada uma volta para o seu lado,
+  # onde é a única leitura possível. E com `metric` filtrado não há duplicação
+  # para resolver, porque só um segmento está em cena.
+  if [ -z "$metric" ] &&
+     [ "$(sl_config_widget_opt flow renewal true)" != "false" ]; then
+    # set -- destrói os posicionais, mas file/metric/sep já foram copiados.
+    set -- $(_flow_layout "$file" "$SL_FLOW_WARN")
+    rb="$1"; rr="$2"; ab="$3"; ar="$4"
+    if [ "$rb" != "-" ] && [ "$rb" = "$rr" ]; then
+      if   [ "$ab" = "1" ] && [ "$ar" = "0" ]; then skip_r=1
+      elif [ "$ar" = "1" ] && [ "$ab" = "0" ]; then skip_b=1
+      else shared="$rb"; skip_b=1; skip_r=1
+      fi
+    fi
+  fi
 
   if [ "$metric" != "requests" ]; then
-    piece="$(_flow_segment "$file" budget)" && line="$piece"
+    piece="$(_flow_segment "$file" budget "$skip_b")" && line="$piece"
   fi
 
   if [ "$metric" != "budget" ]; then
-    if piece="$(_flow_segment "$file" requests)"; then
+    if piece="$(_flow_segment "$file" requests "$skip_r")"; then
       # O separador só entra quando já há algo à esquerda: segmento ausente não
       # pode deixar pontuação órfã.
       if [ -n "$line" ]; then
@@ -247,6 +347,14 @@ _flow_compute() {
       else
         line="$piece"
       fi
+    fi
+  fi
+
+  # A data compartilhada só entra depois de algum número: sozinha ela informaria
+  # quando renova uma cota que não está na tela.
+  if [ -n "$shared" ] && [ -n "$line" ]; then
+    if piece="$(_flow_renewal_label "$shared")"; then
+      line="${line} ${SL_DIM}${sep}${SL_RESET} ${piece}"
     fi
   fi
 
@@ -262,11 +370,12 @@ _flow_compute() {
 }
 
 widget_flow_render() {
-  local file metric sep ttl bin key
+  local file metric sep ttl bin key renewal
 
   file="$(sl_config_widget_opt flow cache "$SL_FLOW_DEFAULT_CACHE")"
   metric="$(sl_config_widget_opt flow metric)"
   sep="$(sl_config_widget_opt flow separator "·")"
+  renewal="$(sl_config_widget_opt flow renewal true)"
 
   ttl="$(sl_config_widget_opt flow ttl "$SL_FLOW_DEFAULT_TTL")"
   case "$ttl" in
@@ -284,6 +393,16 @@ widget_flow_render() {
   # As opções entram na chave: o cache guarda a linha pronta, e duas
   # configurações diferentes do mesmo JSON produzem linhas diferentes. `icons`
   # entra junto porque troca os rótulos.
-  key="flow-$(printf '%s' "$file|$metric|$sep|${SL_CONFIG_ICONS:-1}" | cksum | cut -d' ' -f1)"
+  #
+  # SL_NOW também, e por um motivo que só existe fora de produção: lá a variável
+  # é vazia e some da chave, mas a suíte injeta relógios diferentes sobre o mesmo
+  # fixture, e sem isso a segunda leitura receberia a linha da primeira.
+  #
+  # A regressiva da renovação, portanto, só é recalculada quando o JSON muda —
+  # uma vez por TTL. Numa cota que renova por mês a menor unidade que aparece na
+  # tela é a hora, e cinco minutos de defasagem não a movem.
+  key="flow-$(printf '%s' \
+    "$file|$metric|$sep|${SL_CONFIG_ICONS:-1}|$renewal|${SL_NOW:-}" \
+    | cksum | cut -d' ' -f1)"
   cache_by_mtime "$key" "$file" _flow_compute "$file" "$metric" "$sep"
 }

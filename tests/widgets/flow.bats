@@ -5,6 +5,7 @@ setup() {
   source "$PROJECT_ROOT/lib/colors.sh"
   source "$PROJECT_ROOT/lib/core.sh"
   source "$PROJECT_ROOT/lib/num.sh"
+  source "$PROJECT_ROOT/lib/timefmt.sh"
   source "$PROJECT_ROOT/lib/cache.sh"
   source "$PROJECT_ROOT/lib/config.sh"
   source "$PROJECT_ROOT/widgets/flow.sh"
@@ -20,6 +21,14 @@ setup() {
   REQ='💬'
   INF='∞'
   WARN='⚠'
+  RNW='⟳'
+  # Relógio fixo e duas renovações à frente dele. Vinte e vinte e cinco dias
+  # caem na faixa de dia-e-mês e produzem regressivas sem hora — `20d`, `25d` —
+  # o que mantém as asserções curtas.
+  NOW=1800000000
+  RENEW=1801728000    # +20 dias
+  RENEW2=1802160000   # +25 dias
+  SL_NOW="$NOW"
 }
 
 # Escreve o cache no formato que bin/flow-consumption.sh grava.
@@ -29,6 +38,33 @@ write_cache() {
  "budget":{"percentage":${1:-34.7},"projected_percentage":${2:-58.2},"budget_limit":100,"consumed_usd":34.7},
  "requests":{"percentage":${3:-12.1},"projected_percentage":${4:-20.4},"limit":1000,"unlimited":false}}
 EOF
+}
+
+# Cache com renovação nas duas cotas. Argumentos, em ordem: uso e projeção do
+# budget, uso e projeção de requests, e os dois epochs de renovação. `null` é a
+# ausência de projeção, que é como a API a manda.
+write_renewal() {
+  cat > "$JSON" <<EOF
+{"ok":true,"fetched_at":1786240000,
+ "budget":{"percentage":${1:-24.3},"projected_percentage":${2:-null},
+           "renewal_epoch":${5:-$RENEW}},
+ "requests":{"percentage":${3:-14.0},"projected_percentage":${4:-null},
+             "renewal_epoch":${6:-$RENEW},"unlimited":false}}
+EOF
+}
+
+# Quantas vezes o glifo de renovação aparece. Uma só significa que as duas cotas
+# estão sendo servidas pela mesma data; duas, que cada uma tem a sua.
+count_renewals() {
+  printf '%s' "$1" | grep -o "$RNW" | wc -l | tr -d ' '
+}
+
+# O cache guarda a linha pronta e é invalidado pelo mtime do JSON, cuja resolução
+# é de um segundo: dois payloads escritos dentro do mesmo segundo colidiriam, e o
+# segundo render devolveria a linha do primeiro. Quem renderiza duas vezes no
+# mesmo teste limpa entre uma e outra.
+drop_render_cache() {
+  rm -f "$SL_CACHE_DIR"/flow-* 2>/dev/null || :
 }
 
 # refresh desligado em quase todo teste: o alvo aqui é a leitura, e disparar o
@@ -473,6 +509,144 @@ EOF
   quiet_config_with '"ttl":"sempre"'
   run widget_flow_render
   [[ "$output" == *"$BUD"* ]]
+}
+
+# ── Renovação ────────────────────────────────────────────────────────────────
+#
+# A data dá escala ao percentual: `24%` não diz se sobra um dia ou três semanas
+# para gastar o resto. Onde ela mora depende de para quem ela decide alguma
+# coisa, e é isso que os quatro primeiros testes fixam.
+#
+# As asserções de posição usam duas âncoras: `<n>% ⟳ ` prova de quem a data está
+# ao lado, e `·20d` prova que a regressiva é a esperada. Separadas porque o
+# carimbo entre elas depende do fuso da máquina, e o CI não roda no mesmo do
+# desenvolvedor.
+
+@test "shows the renewal right after the percentage" {
+  write_renewal 24.3 92.33
+  quiet_config
+  run widget_flow_render
+  [[ "$(sl_test_plain "$output")" == *"·20d"* ]]
+  [[ "$(sl_test_plain "$output")" == *"92% $RNW "* ]]
+}
+
+@test "anchors the renewal to budget when only budget alerts" {
+  write_renewal 24.3 92.33 14.0 null
+  quiet_config
+  run widget_flow_render
+  [ "$(count_renewals "$output")" = "1" ]
+  [[ "$(sl_test_plain "$output")" == *"92% $RNW "* ]]
+}
+
+@test "anchors the renewal to requests when only requests alerts" {
+  write_renewal 24.3 null 88.0 110.0
+  quiet_config
+  run widget_flow_render
+  [ "$(count_renewals "$output")" = "1" ]
+  [[ "$(sl_test_plain "$output")" == *"110% $RNW "* ]]
+}
+
+@test "collapses the renewal when both quotas are calm" {
+  write_renewal 24.3 null 14.0 null
+  quiet_config
+  run widget_flow_render
+  [ "$(count_renewals "$output")" = "1" ]
+  # Depois do separador, e não colada a nenhum dos dois números.
+  [[ "$(sl_test_plain "$output")" == *"14% · $RNW "* ]]
+}
+
+@test "collapses the renewal when both quotas alert" {
+  write_renewal 24.3 92.33 88.0 110.0
+  quiet_config
+  run widget_flow_render
+  [ "$(count_renewals "$output")" = "1" ]
+  [[ "$(sl_test_plain "$output")" == *"110% · $RNW "* ]]
+}
+
+@test "usage above the threshold alerts without any projection" {
+  # 85% consumido com vinte dias pela frente é exatamente a pergunta que a data
+  # responde, mesmo sem projeção nenhuma na tela.
+  write_renewal 85.0 null 14.0 null
+  quiet_config
+  run widget_flow_render
+  [ "$(count_renewals "$output")" = "1" ]
+  [[ "$(sl_test_plain "$output")" == *"85% $RNW "* ]]
+}
+
+@test "different renewal dates stay in their own segments" {
+  write_renewal 24.3 92.33 14.0 null "$RENEW" "$RENEW2"
+  quiet_config
+  run widget_flow_render
+  [[ "$(sl_test_plain "$output")" == *"·25d"* ]]
+  [ "$(count_renewals "$output")" = "2" ]
+}
+
+@test "a renewal on only one quota is not collapsed" {
+  cat > "$JSON" <<EOF
+{"ok":true,"fetched_at":1786240000,
+ "budget":{"percentage":24.3,"renewal_epoch":$RENEW},
+ "requests":{"percentage":14.0,"unlimited":false}}
+EOF
+  quiet_config
+  run widget_flow_render
+  [ "$(count_renewals "$output")" = "1" ]
+  [[ "$(sl_test_plain "$output")" == *"24% $RNW "* ]]
+}
+
+@test "a filtered metric keeps the renewal inside the segment" {
+  # Com um segmento só em cena não há duplicação para resolver, então a data
+  # nunca vira terceira faixa.
+  write_renewal 24.3 null 14.0 null
+  quiet_config_with '"metric":"budget"'
+  run widget_flow_render
+  [ "$(count_renewals "$output")" = "1" ]
+  [[ "$(sl_test_plain "$output")" == *"24% $RNW "* ]]
+}
+
+# Os três testes abaixo afirmam uma AUSÊNCIA, e uma ausência passa sozinha
+# quando o recurso inteiro está quebrado. Cada um renderiza duas vezes: uma no
+# caso sob teste e outra no caso vizinho, onde a data precisa aparecer. Sem esse
+# par eles continuariam verdes com a renovação nunca funcionando.
+@test "renewal false drops the date entirely" {
+  write_renewal 24.3 92.33
+  quiet_config_with '"renewal":false'
+  run widget_flow_render
+  [[ "$output" != *"$RNW"* ]]
+  quiet_config
+  run widget_flow_render
+  [[ "$output" == *"$RNW"* ]]
+}
+
+@test "a renewal already in the past disappears" {
+  write_renewal 24.3 92.33 14.0 null 1799999000 1799999000
+  quiet_config
+  run widget_flow_render
+  [[ "$output" != *"$RNW"* ]]
+  drop_render_cache
+  write_renewal 24.3 92.33
+  run widget_flow_render
+  [[ "$output" == *"$RNW"* ]]
+}
+
+@test "a payload without the renewal field renders as before" {
+  write_cache
+  quiet_config
+  run widget_flow_render
+  [[ "$output" != *"$RNW"* ]]
+  [[ "$output" == *"$BUD"* ]]
+  drop_render_cache
+  write_renewal 24.3 92.33
+  run widget_flow_render
+  [[ "$output" == *"$RNW"* ]]
+}
+
+@test "icons off drops the mark but keeps the date" {
+  write_renewal 24.3 92.33
+  no_icons_config
+  run widget_flow_render
+  [[ "$output" != *"$RNW"* ]]
+  # A regressiva sobrevive ao glifo, e serve de contraprova ao `!=` acima.
+  [[ "$(sl_test_plain "$output")" == *"·20d"* ]]
 }
 
 @test "the shipped fetcher is executable" {
