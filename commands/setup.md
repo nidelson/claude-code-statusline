@@ -57,12 +57,35 @@ existir, crie:
 ```json
 {
   "version": 1,
-  "lines": [["model", "git"], ["rate-forecast"]],
-  "separator": "|"
+  "lines": [
+    ["repo", "branch", "git-status", "worktree", "velocity", "cache", "model", "cost", "flow"],
+    ["context", "rate-forecast", "sprint"]
+  ],
+  "separator": "|",
+  "icons": true,
+  "widgets": {
+    "cost": { "warn": 5, "crit": 15 },
+    "flow": { "ttl": 300 }
+  }
 }
 ```
 
 Se já existir, não toque nele.
+
+Este default mostra doze dos quatorze widgets. Ele parece cheio escrito assim,
+mas quase metade não aparece na maioria das sessões: `worktree` some na árvore
+principal, `git-status` some com a árvore limpa, `velocity` some quando nada
+mudou, `cache` some sem tokens de cache, e `sprint` e `flow` somem sem o
+respectivo helper ou token. O que sobra numa máquina recém-instalada são cinco ou
+seis segmentos.
+
+Widget que não tem nada a dizer desaparece, então incluir muitos no default custa
+pouco e resolve a descoberta: ninguém precisa ler o README inteiro para saber que
+existe um widget de custo.
+
+O `command` fica de fora porque exige um `cmd` para fazer qualquer coisa, e o
+`git` também, porque é o `branch` e o `git-status` fundidos — os três na mesma
+linha rodariam `git status` duas vezes por repaint.
 
 ## Passo 6: Verificar
 
