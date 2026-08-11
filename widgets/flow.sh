@@ -134,15 +134,18 @@ _flow_segment() {
   label="$(_flow_label "$metric")"
 
   # Uma passada de jq devolve os dois números crus. Sai vazio — e o segmento
-  # inteiro some — quando a busca falhou, quando a métrica não veio no payload,
-  # ou quando ela é ilimitada.
+  # inteiro some — quando a busca falhou ou quando a métrica não veio no
+  # payload.
+  #
+  # Cota ilimitada NÃO some: a API manda `unlimited: true` junto com limite,
+  # contagem e percentual, e esconder tudo isso jogava fora dado verdadeiro. O
+  # fato de não haver teto é dito pelo `∞` do segmento de status, ao lado.
   #
   # O jq entrega o valor como veio da API, sem arredondar. O arredondamento é o
   # de lib/num.sh, o mesmo que todos os outros percentuais usam.
   raw="$(jq -r --arg m "$metric" '
     if (.ok | not) then empty
     elif (.[$m] | not) then empty
-    elif (.[$m].unlimited == true) then empty
     else "\(.[$m].percentage // 0) \(.[$m].projected_percentage // "-")"
     end' "$file" 2>/dev/null)" || return 1
   [ -n "$raw" ] || return 1
@@ -179,6 +182,55 @@ _flow_segment() {
   printf '%s' "$out"
 }
 
+# Terceiro segmento: o que não é número.
+#
+# Dois estados, e nenhum deles cabe num percentual:
+#
+#   ∞  a cota de requests não tem teto. Fato calmo, então esmaecido: ele explica
+#      por que o percentual ao lado não vai bloquear ninguém, e não pede reação.
+#   ⚠  a última busca falhou. Vermelho, porque pede.
+#
+# O ⚠ é monocromático de propósito. Emoji têm cor própria e ignoram ANSI: não
+# existe wifi vermelho em emoji, e um aviso que não consegue ficar vermelho não
+# é aviso.
+#
+# Quando os dois aparecem juntos, os números ao lado são a última leitura boa —
+# o fetcher preserva o payload e só marca a falha. `⚠` significa "não consegui
+# atualizar", não "não sei de nada".
+_flow_status() {
+  local file="$1" metric="$2" raw out="" mark
+
+  # `unlimited` só interessa se o segmento de requests estiver em cena: filtrado
+  # para budget, o ∞ falaria de um número que não está na tela.
+  raw="$(jq -r --arg m "$metric" '
+    [ (if ($m != "budget" and .requests.unlimited == true) then "unlimited" else empty end),
+      (if (.error != null or (.ok | not)) then "offline" else empty end) ]
+    | join(" ")' "$file" 2>/dev/null)" || return 1
+  [ -n "$raw" ] || return 1
+
+  for mark in $raw; do
+    case "$mark" in
+      unlimited)
+        if [ "${SL_CONFIG_ICONS:-1}" = "1" ]; then
+          out="${out}${out:+ }${SL_DIM}∞${SL_RESET}"
+        else
+          out="${out}${out:+ }${SL_DIM}unlimited${SL_RESET}"
+        fi
+        ;;
+      offline)
+        if [ "${SL_CONFIG_ICONS:-1}" = "1" ]; then
+          out="${out}${out:+ }$(sl_color red)⚠${SL_RESET}"
+        else
+          out="${out}${out:+ }$(sl_color red)offline${SL_RESET}"
+        fi
+        ;;
+    esac
+  done
+
+  [ -n "$out" ] || return 1
+  printf '%s' "$out"
+}
+
 _flow_compute() {
   local file="$1" metric="$2" sep="$3" piece line=""
 
@@ -195,6 +247,14 @@ _flow_compute() {
       else
         line="$piece"
       fi
+    fi
+  fi
+
+  if piece="$(_flow_status "$file" "$metric")"; then
+    if [ -n "$line" ]; then
+      line="${line} ${SL_DIM}${sep}${SL_RESET} ${piece}"
+    else
+      line="$piece"
     fi
   fi
 

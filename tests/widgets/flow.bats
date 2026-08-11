@@ -18,6 +18,8 @@ setup() {
   # quase toda asserção e trocá-los não deve exigir varrer o arquivo.
   BUD='💰'
   REQ='💬'
+  INF='∞'
+  WARN='⚠'
 }
 
 # Escreve o cache no formato que bin/flow-consumption.sh grava.
@@ -67,11 +69,25 @@ no_icons_config() {
   [ "$output" = "" ]
 }
 
-@test "renders nothing when the fetch reported failure" {
+@test "a failure with no prior reading shows the warning alone" {
+  # Antes isto renderizava vazio, e um Flow quebrado ficava indistinguível de um
+  # Flow que ninguém configurou. O aviso sozinho é o único conteúdo honesto:
+  # não há número anterior para mostrar.
   printf '{"ok":false,"message":"sem token"}' > "$JSON"
   quiet_config
   run widget_flow_render
-  [ "$output" = "" ]
+  [[ "$output" == *"$WARN"* ]]
+  [[ "$output" != *"$BUD"* ]]
+  [[ "$output" != *"$SEP"* ]]
+}
+
+@test "the warning is painted red" {
+  printf '{"ok":false,"message":"sem token"}' > "$JSON"
+  quiet_config
+  run widget_flow_render
+  # Vermelho é o motivo de o glifo ser monocromático: emoji ignoram ANSI, e um
+  # aviso que não consegue ficar vermelho não é aviso.
+  [[ "$output" == *$'\033[31m'"$WARN"* ]]
 }
 
 @test "renders nothing when the cache is corrupt" {
@@ -164,22 +180,122 @@ no_icons_config() {
   [[ "$output" != *"$SEP"* ]]
 }
 
-@test "an unlimited quota drops its segment" {
-  # Percentual de um limite que não se aplica não decide nada, e ocuparia espaço
-  # permanente ao lado de um que decide.
+# Payload real de uma conta com a cota de chamadas sem teto: a API manda
+# `unlimited: true` E limite E contagem E percentual, tudo junto.
+write_unlimited() {
   cat > "$JSON" <<'EOF'
 {"ok":true,"fetched_at":1786240000,
  "budget":{"percentage":24.30,"projected_percentage":92.33},
- "requests":{"percentage":13.96,"projected_percentage":null,"unlimited":true}}
+ "requests":{"percentage":13.96,"projected_percentage":null,"limit":5000,"unlimited":true}}
 EOF
+}
+
+# Última leitura boa mais a marca de que a atualização falhou — o que o fetcher
+# grava desde que parou de destruir o payload.
+write_stale() {
+  cat > "$JSON" <<'EOF'
+{"ok":true,"fetched_at":1786240000,
+ "budget":{"percentage":24.30,"projected_percentage":92.33},
+ "requests":{"percentage":61.4,"projected_percentage":71.2,"unlimited":false},
+ "error":{"message":"sem token","at":1786243000}}
+EOF
+}
+
+@test "an unlimited quota keeps its percentage" {
+  # A API manda limite, contagem e percentual mesmo marcando unlimited. Esconder
+  # tudo isso jogava fora dado verdadeiro; o teto ausente é dito pelo ∞ ao lado.
+  write_unlimited
   quiet_config
   run widget_flow_render
   # Rótulo e percentual não são contíguos: o rótulo é esmaecido e o número
   # carrega a própria cor, com sequências de escape entre os dois.
   [[ "$output" == *"$BUD"* ]]
   [[ "$output" == *"24%"* ]]
-  [[ "$output" != *"$REQ"* ]]
-  [[ "$output" != *"$SEP"* ]]
+  [[ "$output" == *"$REQ"* ]]
+  [[ "$output" == *"14%"* ]]
+}
+
+@test "an unlimited quota adds the infinity mark" {
+  write_unlimited
+  quiet_config
+  run widget_flow_render
+  [[ "$output" == *"$INF"* ]]
+  [[ "$output" != *"$WARN"* ]]
+}
+
+@test "the infinity mark is dimmed, not coloured" {
+  # Fato calmo, peso calmo: ele explica por que o percentual ao lado não vai
+  # bloquear ninguém, e não compete com um aviso vermelho na mesma linha.
+  write_unlimited
+  quiet_config
+  run widget_flow_render
+  [[ "$output" == *$'\033[2m'"$INF"* ]]
+}
+
+@test "the infinity mark stays out when requests is filtered away" {
+  # Filtrado para budget, o ∞ falaria de um número que não está na tela.
+  write_unlimited
+  quiet_config_with '"metric":"budget"'
+  run widget_flow_render
+  [[ "$output" == *"$BUD"* ]]
+  [[ "$output" != *"$INF"* ]]
+}
+
+@test "a stale reading keeps its numbers and adds the warning" {
+  # O caso que importa: números de minutos atrás, mais o aviso de que não foi
+  # possível atualizar. `⚠` significa "não consegui atualizar", não "não sei".
+  write_stale
+  quiet_config
+  run widget_flow_render
+  [[ "$output" == *"24%"* ]]
+  [[ "$output" == *"61%"* ]]
+  [[ "$output" == *"$WARN"* ]]
+}
+
+@test "a stale reading with no unlimited quota shows no infinity mark" {
+  write_stale
+  quiet_config
+  run widget_flow_render
+  [[ "$output" != *"$INF"* ]]
+}
+
+@test "both marks can share the status segment" {
+  cat > "$JSON" <<'EOF'
+{"ok":true,"fetched_at":1786240000,
+ "budget":{"percentage":24.30,"projected_percentage":92.33},
+ "requests":{"percentage":13.96,"projected_percentage":null,"unlimited":true},
+ "error":{"message":"sem token","at":1786243000}}
+EOF
+  quiet_config
+  run widget_flow_render
+  [[ "$output" == *"$INF"* ]]
+  [[ "$output" == *"$WARN"* ]]
+}
+
+@test "icons off spells the status marks out" {
+  write_unlimited
+  no_icons_config
+  run widget_flow_render
+  [[ "$output" == *"unlimited"* ]]
+  [[ "$output" != *"$INF"* ]]
+}
+
+@test "icons off spells the warning out" {
+  write_stale
+  no_icons_config
+  run widget_flow_render
+  [[ "$output" == *"offline"* ]]
+  [[ "$output" != *"$WARN"* ]]
+}
+
+@test "a healthy limited quota renders no status segment" {
+  # Nada a dizer, nada na tela: o terceiro segmento não pode virar decoração
+  # permanente.
+  write_cache
+  quiet_config
+  run widget_flow_render
+  [[ "$output" != *"$INF"* ]]
+  [[ "$output" != *"$WARN"* ]]
 }
 
 @test "a missing metric in the payload drops its segment" {
@@ -361,6 +477,57 @@ EOF
 
 @test "the shipped fetcher is executable" {
   [ -x "$PROJECT_ROOT/bin/flow-consumption.sh" ]
+}
+
+# Os três testes abaixo rodam o fetcher de verdade, sem rede: sem token ele
+# aborta na verificação de credencial, muito antes de qualquer chamada HTTP.
+# XDG_CACHE_HOME temporário mantém o cache real do usuário fora disso.
+# O `|| :` é esperado, não tolerância: sem token o fetcher sai com status
+# diferente de zero depois de gravar o arquivo, e é o arquivo que está sob
+# teste.
+run_fetcher_without_token() {
+  env -u ANTHROPIC_AUTH_TOKEN XDG_CACHE_HOME="$BATS_TEST_TMPDIR/xdg" \
+    bash "$PROJECT_ROOT/bin/flow-consumption.sh" || :
+}
+
+seed_good_payload() {
+  mkdir -p "$BATS_TEST_TMPDIR/xdg"
+  cat > "$BATS_TEST_TMPDIR/xdg/flow-consumption.json" <<'EOF'
+{"ok":true,"fetched_at":1786240000,
+ "budget":{"percentage":24.30,"projected_percentage":92.33},
+ "requests":{"percentage":61.4,"projected_percentage":71.2,"unlimited":false}}
+EOF
+}
+
+@test "a failed fetch preserves the last good reading" {
+  # Uma sessão sem token zerava o widget a cada TTL. Um número de minutos atrás
+  # é verdadeiro; apagá-lo não é mais honesto, é só menos útil.
+  seed_good_payload
+  run_fetcher_without_token
+  saved="$BATS_TEST_TMPDIR/xdg/flow-consumption.json"
+  [ "$(jq -r '.ok' "$saved")" = "true" ]
+  [ "$(jq -r '.budget.percentage' "$saved")" = "24.30" ]
+  [ "$(jq -r '.error.message' "$saved")" != "null" ]
+  # fetched_at marca a idade do DADO, não da tentativa: quem falhou foi o
+  # refresh, e o dado continua sendo o de antes.
+  [ "$(jq -r '.fetched_at' "$saved")" = "1786240000" ]
+}
+
+@test "repeated failures do not stack error markers" {
+  seed_good_payload
+  run_fetcher_without_token
+  run_fetcher_without_token
+  saved="$BATS_TEST_TMPDIR/xdg/flow-consumption.json"
+  [ "$(jq -r '.error | type' "$saved")" = "object" ]
+  [ "$(jq -r '.fetched_at' "$saved")" = "1786240000" ]
+  [ ! -f "$saved.tmp" ]
+}
+
+@test "a failed fetch with no prior reading falls back to the error payload" {
+  run_fetcher_without_token
+  saved="$BATS_TEST_TMPDIR/xdg/flow-consumption.json"
+  [ "$(jq -r '.ok' "$saved")" = "false" ]
+  [ "$(jq -r '.message' "$saved")" != "null" ]
 }
 
 @test "the shipped fetcher holds no hardcoded credential" {
