@@ -447,7 +447,7 @@ Consumo na CI&T Flow Platform: as duas cotas, cada uma com uso atual e previsão
 de estouro.
 
 ```
-flow:24%→92% · req:61%
+💰 24%→92% · 💬 61%
 ```
 
 | Opção | Valores | Padrão |
@@ -467,6 +467,20 @@ Anthropic, e ela pertence à mesma linha que todo o resto.
 janelas: `budget` conta dinheiro, `requests` conta chamadas, e estourar uma não
 diz nada sobre a outra. As duas ficam visíveis, e `metric` filtra em vez de
 escolher — deixe de fora para ver ambas, defina para ver só uma.
+
+Os dois glifos respeitam `icons: false`, e nesse modo os rótulos são as palavras
+inteiras:
+
+```
+icons: true    💰 24%→92% · 💬 61%
+icons: false   budget:24%→92% · requests:61%
+```
+
+`budget:` e `requests:` são mais longos que uma abreviação seria, de propósito:
+quem desliga os ícones costuma fazê-lo por causa do terminal, não por falta de
+espaço, e a palavra inteira não exige que ninguém adivinhe o que `req` significa.
+Ao contrário dos glifos monocromáticos do `rate-forecast`, os emoji têm cor
+própria e ignoram o esmaecimento — é o preço de serem reconhecíveis de relance.
 
 **As mesmas duas cores do `rate-forecast`.** Uso e projeção são pintados cada um
 pelo próprio número: verde abaixo de 80%, amarelo a partir de 80%, vermelho a

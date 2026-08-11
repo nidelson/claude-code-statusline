@@ -93,6 +93,30 @@ _flow_maybe_refresh() {
   ( bash "$bin" >/dev/null 2>&1 </dev/null & ) >/dev/null 2>&1
 }
 
+# Rótulo do segmento. Com ícones, dois emoji; sem eles, as palavras inteiras.
+#
+# `budget:` e `requests:` são mais longos que os `flow:`/`req:` de antes, e é de
+# propósito: quem desliga os ícones normalmente o faz por causa do terminal, não
+# por falta de espaço, e a palavra inteira não exige que ninguém adivinhe o que
+# `req` abrevia.
+#
+# Os emoji ignoram o SL_DIM — cor de emoji é fixa. O esmaecimento fica no
+# caminho de texto, onde funciona; envolver os dois do mesmo jeito mantém o
+# chamador sem casos especiais.
+_flow_label() {
+  if [ "${SL_CONFIG_ICONS:-1}" = "1" ]; then
+    case "$1" in
+      requests) printf '%s' '💬 ' ;;
+      *)        printf '%s' '💰 ' ;;
+    esac
+  else
+    case "$1" in
+      requests) printf '%s' 'requests:' ;;
+      *)        printf '%s' 'budget:'   ;;
+    esac
+  fi
+}
+
 _flow_color() {
   if   [ "$1" -ge "$SL_FLOW_CRIT" ]; then sl_color red
   elif [ "$1" -ge "$SL_FLOW_WARN" ]; then sl_color yellow
@@ -107,10 +131,7 @@ _flow_segment() {
   local file="$1" metric="$2"
   local label raw used proj out ucolor pcolor
 
-  case "$metric" in
-    requests) label="req:"  ;;
-    *)        label="flow:" ;;
-  esac
+  label="$(_flow_label "$metric")"
 
   # Uma passada de jq devolve os dois números crus. Sai vazio — e o segmento
   # inteiro some — quando a busca falhou, quando a métrica não veio no payload,
@@ -201,7 +222,8 @@ widget_flow_render() {
   [ -f "$file" ] || return 0
 
   # As opções entram na chave: o cache guarda a linha pronta, e duas
-  # configurações diferentes do mesmo JSON produzem linhas diferentes.
-  key="flow-$(printf '%s' "$file|$metric|$sep" | cksum | cut -d' ' -f1)"
+  # configurações diferentes do mesmo JSON produzem linhas diferentes. `icons`
+  # entra junto porque troca os rótulos.
+  key="flow-$(printf '%s' "$file|$metric|$sep|${SL_CONFIG_ICONS:-1}" | cksum | cut -d' ' -f1)"
   cache_by_mtime "$key" "$file" _flow_compute "$file" "$metric" "$sep"
 }
