@@ -43,9 +43,11 @@ setup() {
   [[ "$output" == *"7d:"* ]]
   [[ "$output" == *"13%"* ]]
   [[ "$output" != *"5h:"* ]]
-  # O separador entre janelas vai cercado de espaços; o `·` interno do rótulo de
-  # reset não vai. Só o primeiro seria órfão aqui.
-  [[ "$output" != *" · "* ]]
+  # O separador entre janelas sai esmaecido: espaço, escape, glifo, reset,
+  # espaço. O `·` interno do rótulo de reset não leva espaços em volta, então os
+  # dois não se confundem. Procurar por " · " cru nunca casaria com nenhum dos
+  # dois — e uma asserção que nunca casa também nunca falha.
+  [[ "$output" != *$' \033[2m·\033[0m '* ]]
 }
 
 @test "level none shows the percentage only" {
@@ -239,6 +241,9 @@ EOF
   [[ "$output" == *"42%"* ]]
   [[ "$output" == *"7d:"* ]]
   [[ "$output" == *"13%"* ]]
+  # Contraparte positiva da asserção de separador órfão acima: sem esta, aquela
+  # poderia estar procurando por algo que nunca existe e ninguém notaria.
+  [[ "$output" == *$' \033[2m·\033[0m '* ]]
 }
 
 @test "the five-hour window comes first" {

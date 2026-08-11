@@ -10,6 +10,10 @@ setup() {
   source "$PROJECT_ROOT/widgets/flow.sh"
   SL_CONFIG_RAW=""
   JSON="$BATS_TEST_TMPDIR/flow.json"
+  # O separador entre segmentos sai esmaecido: espaço, escape, glifo, reset,
+  # espaço. Procurar por " · " cru nunca casaria — e uma asserção que nunca casa
+  # também nunca falha, que é pior do que não existir.
+  SEP=$' \033[2m·\033[0m '
 }
 
 # Escreve o cache no formato que bin/flow-consumption.sh grava.
@@ -78,6 +82,7 @@ quiet_config_with() {
   [[ "$output" == *"35%"* ]]
   [[ "$output" == *"req:"* ]]
   [[ "$output" == *"12%"* ]]
+  [[ "$output" == *"$SEP"* ]]
 }
 
 @test "budget comes first" {
@@ -114,8 +119,8 @@ quiet_config_with() {
   write_cache
   quiet_config_with '"metric":"budget"'
   run widget_flow_render
-  # O separador entre segmentos vai cercado de espaços. Só ele seria órfão aqui.
-  [[ "$output" != *" · "* ]]
+  # Segmento ausente não pode deixar pontuação órfã.
+  [[ "$output" != *"$SEP"* ]]
 }
 
 @test "an unlimited quota drops its segment" {
@@ -128,16 +133,20 @@ quiet_config_with() {
 EOF
   quiet_config
   run widget_flow_render
-  [[ "$output" == *"flow:24%"* ]]
+  # Rótulo e percentual não são contíguos: o rótulo é esmaecido e o número
+  # carrega a própria cor, com sequências de escape entre os dois.
+  [[ "$output" == *"flow:"* ]]
+  [[ "$output" == *"24%"* ]]
   [[ "$output" != *"req:"* ]]
-  [[ "$output" != *" · "* ]]
+  [[ "$output" != *"$SEP"* ]]
 }
 
 @test "a missing metric in the payload drops its segment" {
   printf '{"ok":true,"budget":{"percentage":40,"projected_percentage":50}}' > "$JSON"
   quiet_config
   run widget_flow_render
-  [[ "$output" == *"flow:40%"* ]]
+  [[ "$output" == *"flow:"* ]]
+  [[ "$output" == *"40%"* ]]
   [[ "$output" != *"req:"* ]]
 }
 
@@ -177,7 +186,8 @@ EOF
   run widget_flow_render
   # Projeção nula é ausência de projeção, não projeção de zero. `→0%` afirmaria
   # um número que a API nunca devolveu.
-  [[ "$output" == *"flow:14%"* ]]
+  [[ "$output" == *"flow:"* ]]
+  [[ "$output" == *"14%"* ]]
   [[ "$output" != *"→"* ]]
 }
 
