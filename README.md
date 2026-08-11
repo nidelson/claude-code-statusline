@@ -361,6 +361,13 @@ cor do nível devolvido pelo helper. Um `31%` verde ao lado de um `→93%` amare
 não é contradição — é uso baixo com ritmo alto, que é exatamente o que se quer
 enxergar.
 
+**A projeção só aparece quando pede reação.** Nível `ok` não vira texto: no
+exemplo acima a janela de sete dias não mostra projeção nenhuma porque o ritmo
+dela está tranquilo. Um `→48%` verde ocupa espaço permanente para dizer "siga em
+frente", que já era o estado padrão de quem não vê aviso — e o olho que aprende a
+ignorar a seta deixa de ver o dia em que ela vira `→116%`. Silêncio aqui é
+informação: seta na tela significa que alguma coisa mudou.
+
 O reset mostra o horário abaixo de 24 horas e o dia da semana acima disso,
 escolhido pelo tempo restante e não pela janela, de modo que uma janela de sete
 dias que reseta em quatro horas ainda mostra a hora. Horário e regressiva ficam
@@ -381,6 +388,10 @@ $SL_FORECAST_BIN <label> <used_pct> <resets_at_epoch> <window_seconds>
 → stdout: "<nível> <projeção>"    nível ∈ none|ok|warn|crit
 → exit:   0, sempre
 ```
+
+`none` e `ok` renderizam igual — sem projeção. A diferença entre "não sei
+estimar" e "estimei, está tranquilo" não muda nada para quem lê a statusline, e
+o helper continua distinguindo os dois para quem quiser inspecioná-lo.
 
 O `SL_FORECAST_BIN` aponta por padrão para `$HOME/.claude/rate-forecast.sh`. Sem
 ele, o widget ainda mostra o percentual atual — uma leitura degradada é melhor
@@ -432,12 +443,17 @@ A cor é semântica — a opção `color` não se aplica.
 
 ### `flow`
 
-Consumo na CI&T Flow Platform, com previsão: `flow:34%→58%`. Verde abaixo de 80%
-projetado, amarelo a partir de 80%, vermelho a partir de 100%.
+Consumo na CI&T Flow Platform: as duas cotas, cada uma com uso atual e previsão
+de estouro.
+
+```
+flow:24%→92% · req:61%
+```
 
 | Opção | Valores | Padrão |
 |---|---|---|
-| `metric` | `budget`, `requests` | `budget` |
+| `metric` | `budget`, `requests`; omita para mostrar as duas | omitido |
+| `separator` | texto entre as duas cotas | `·` |
 | `ttl` | segundos entre buscas | `300` |
 | `refresh` | `true`, `false` — se deve buscar | `true` |
 | `cache` | caminho do JSON buscado | `$XDG_CACHE_HOME/flow-consumption.json` |
@@ -446,6 +462,21 @@ projetado, amarelo a partir de 80%, vermelho a partir de 100%.
 Este é o widget de provedor corporativo. Passar por um gateway da empresa
 significa uma quota com limite e renovação próprios, invisível ao rate limit da
 Anthropic, e ela pertence à mesma linha que todo o resto.
+
+**Duas cotas independentes**, do mesmo jeito que o `rate-forecast` tem duas
+janelas: `budget` conta dinheiro, `requests` conta chamadas, e estourar uma não
+diz nada sobre a outra. As duas ficam visíveis, e `metric` filtra em vez de
+escolher — deixe de fora para ver ambas, defina para ver só uma.
+
+**As mesmas duas cores do `rate-forecast`.** Uso e projeção são pintados cada um
+pelo próprio número: verde abaixo de 80%, amarelo a partir de 80%, vermelho a
+partir de 100%. E, também como lá, projeção tranquila não vira texto — no exemplo
+acima `req` não mostra seta porque o ritmo dela não pede reação.
+
+**O segmento some quando o número não decide nada.** `requests` marcado como
+`unlimited` pela API é percentual de um limite que não se aplica, e desaparece;
+uma métrica ausente do payload desaparece junto. Projeção nula também não vira
+`→0%` — a API nunca afirmou zero, ela afirmou nada.
 
 **Buscar e mostrar são coisas separadas, e os relógios delas também.** O
 `bin/flow-consumption.sh` fala com a rede e escreve JSON; o widget apenas lê esse

@@ -32,6 +32,12 @@ quiet_config() {
   use_config "{\"version\":1,\"lines\":[[\"flow\"]],\"widgets\":{\"flow\":{\"refresh\":false,\"cache\":\"$JSON\"}}}"
 }
 
+# Mesma configuração, mais as opções passadas — para variar `metric` e
+# `separator` sem repetir o JSON inteiro.
+quiet_config_with() {
+  use_config "{\"version\":1,\"lines\":[[\"flow\"]],\"widgets\":{\"flow\":{\"refresh\":false,\"cache\":\"$JSON\",$1}}}"
+}
+
 @test "registers itself on load" {
   sl_widget_registered flow
 }
@@ -62,72 +68,165 @@ quiet_config() {
   [ "$output" = "" ]
 }
 
-@test "shows budget usage and forecast" {
+@test "renders both segments by default" {
+  # Budget e requests são cotas independentes: estourar uma não diz nada sobre a
+  # outra, então as duas ficam visíveis.
   write_cache
   quiet_config
   run widget_flow_render
-  # 34.7 e 58.2 arredondados, não truncados.
-  [[ "$output" == *"flow:35%→58%"* ]]
+  [[ "$output" == *"flow:"* ]]
+  [[ "$output" == *"35%"* ]]
+  [[ "$output" == *"req:"* ]]
+  [[ "$output" == *"12%"* ]]
 }
 
-@test "rounds the percentages to whole numbers" {
-  write_cache 34.9 58.9
+@test "budget comes first" {
+  write_cache
   quiet_config
   run widget_flow_render
-  [[ "$output" == *"35%"* ]]
-  [[ "$output" == *"59%"* ]]
-  [[ "$output" != *"."* ]]
+  [[ "${output%%req:*}" == *"flow:"* ]]
 }
 
-@test "a null projection shows no arrow at all" {
+@test "the metric option narrows to budget alone" {
+  write_cache
+  quiet_config_with '"metric":"budget"'
+  run widget_flow_render
+  [[ "$output" == *"flow:"* ]]
+  [[ "$output" != *"req:"* ]]
+}
+
+@test "the metric option narrows to requests alone" {
+  write_cache
+  quiet_config_with '"metric":"requests"'
+  run widget_flow_render
+  [[ "$output" == *"req:"* ]]
+  [[ "$output" != *"flow:"* ]]
+}
+
+@test "a configured separator replaces the default" {
+  write_cache
+  quiet_config_with '"separator":"//"'
+  run widget_flow_render
+  [[ "$output" == *"//"* ]]
+}
+
+@test "one segment alone renders without a stray separator" {
+  write_cache
+  quiet_config_with '"metric":"budget"'
+  run widget_flow_render
+  # O separador entre segmentos vai cercado de espaços. Só ele seria órfão aqui.
+  [[ "$output" != *" · "* ]]
+}
+
+@test "an unlimited quota drops its segment" {
+  # Percentual de um limite que não se aplica não decide nada, e ocuparia espaço
+  # permanente ao lado de um que decide.
   cat > "$JSON" <<'EOF'
 {"ok":true,"fetched_at":1786240000,
  "budget":{"percentage":24.30,"projected_percentage":92.33},
  "requests":{"percentage":13.96,"projected_percentage":null,"unlimited":true}}
 EOF
-  use_config '{"widgets":{"flow":{"cache":"'"$JSON"'","metric":"requests","refresh":false}}}'
+  quiet_config
   run widget_flow_render
-  # Projeção nula é ausência de projeção, não projeção de zero. `→0%` afirmaria
-  # um número que a API nunca devolveu.
-  [[ "$output" == *"req:14%"* ]]
+  [[ "$output" == *"flow:24%"* ]]
+  [[ "$output" != *"req:"* ]]
+  [[ "$output" != *" · "* ]]
+}
+
+@test "a missing metric in the payload drops its segment" {
+  printf '{"ok":true,"budget":{"percentage":40,"projected_percentage":50}}' > "$JSON"
+  quiet_config
+  run widget_flow_render
+  [[ "$output" == *"flow:40%"* ]]
+  [[ "$output" != *"req:"* ]]
+}
+
+@test "a calm projection is not shown at all" {
+  # 58% projetado não muda decisão nenhuma: quem não vê aviso já sabia seguir em
+  # frente. A seta fica reservada para o que pede reação.
+  write_cache 34.7 58.2
+  quiet_config_with '"metric":"budget"'
+  run widget_flow_render
+  [[ "$output" == *"flow:"* ]]
+  [[ "$output" == *"35%"* ]]
   [[ "$output" != *"→"* ]]
 }
 
-@test "paints green on a low forecast" {
-  write_cache 34.7 58.2
-  quiet_config
-  run widget_flow_render
-  [[ "$output" == *$'\033[32m'* ]]
-}
-
-@test "paints yellow from eighty percent projected" {
+@test "a projection at eighty percent is shown in yellow" {
   write_cache 60 91
-  quiet_config
+  quiet_config_with '"metric":"budget"'
   run widget_flow_render
-  [[ "$output" == *$'\033[33m'* ]]
+  [[ "$output" == *"→91%"* ]]
+  [[ "$output" == *$'\033[33m'"→91%"* ]]
 }
 
-@test "paints red when the forecast overruns the quota" {
+@test "a projection over the quota is shown in red" {
   # O ponto do widget: avisar antes de bloquear, não depois.
   write_cache 66 117
-  quiet_config
+  quiet_config_with '"metric":"budget"'
   run widget_flow_render
-  [[ "$output" == *$'\033[31m'* ]]
-  [[ "$output" == *"117%"* ]]
+  [[ "$output" == *$'\033[31m'"→117%"* ]]
 }
 
-@test "the metric option switches to requests" {
-  write_cache 34.7 58.2 12.1 20.4
-  use_config "{\"version\":1,\"lines\":[[\"flow\"]],\"widgets\":{\"flow\":{\"refresh\":false,\"cache\":\"$JSON\",\"metric\":\"requests\"}}}"
+@test "a null projection shows no arrow at all" {
+  cat > "$JSON" <<'EOF'
+{"ok":true,"fetched_at":1786240000,
+ "budget":{"percentage":13.96,"projected_percentage":null}}
+EOF
+  quiet_config_with '"metric":"budget"'
   run widget_flow_render
-  [[ "$output" == *"req:12%→20%"* ]]
+  # Projeção nula é ausência de projeção, não projeção de zero. `→0%` afirmaria
+  # um número que a API nunca devolveu.
+  [[ "$output" == *"flow:14%"* ]]
+  [[ "$output" != *"→"* ]]
 }
 
-@test "budget and requests do not share a cache entry" {
-  write_cache 34.7 58.2 12.1 20.4
+@test "usage is coloured on its own figure, not on the projection" {
+  # Com a projeção tranquila omitida, é o uso que precisa carregar o sinal:
+  # `flow:95%` em verde afirmaria calma onde não há.
+  write_cache 95 60
+  quiet_config_with '"metric":"budget"'
+  run widget_flow_render
+  [[ "$output" == *$'\033[33m'"95%"* ]]
+  [[ "$output" != *"→"* ]]
+}
+
+@test "usage below eighty percent paints green" {
+  write_cache 34.7 58.2
+  quiet_config_with '"metric":"budget"'
+  run widget_flow_render
+  [[ "$output" == *$'\033[32m'"35%"* ]]
+}
+
+@test "usage at the quota paints red" {
+  write_cache 100 60
+  quiet_config_with '"metric":"budget"'
+  run widget_flow_render
+  [[ "$output" == *$'\033[31m'"100%"* ]]
+}
+
+@test "each segment is coloured on its own figures" {
+  write_cache 90 60 10 20
   quiet_config
+  run widget_flow_render
+  [[ "$output" == *$'\033[33m'"90%"* ]]
+  [[ "$output" == *$'\033[32m'"10%"* ]]
+}
+
+@test "rounds the percentages to whole numbers" {
+  write_cache 34.9 91.6
+  quiet_config_with '"metric":"budget"'
+  run widget_flow_render
+  [[ "$output" == *"35%"* ]]
+  [[ "$output" == *"92%"* ]]
+  [[ "$output" != *"."* ]]
+}
+
+@test "two metric settings do not share a cache entry" {
+  write_cache 34.7 58.2 12.1 20.4
+  quiet_config_with '"metric":"budget"'
   budget_out="$(widget_flow_render)"
-  use_config "{\"version\":1,\"lines\":[[\"flow\"]],\"widgets\":{\"flow\":{\"refresh\":false,\"cache\":\"$JSON\",\"metric\":\"requests\"}}}"
+  quiet_config_with '"metric":"requests"'
   run widget_flow_render
   [ "$output" != "$budget_out" ]
 }
@@ -153,7 +252,10 @@ EOF
   widget_flow_render >/dev/null
   write_cache 70 95
   run widget_flow_render
-  [[ "$output" == *"70%→95%"* ]]
+  # Uso e projeção não são mais contíguos: cada um carrega a própria cor, com
+  # sequências de escape entre os dois.
+  [[ "$output" == *"70%"* ]]
+  [[ "$output" == *"→95%"* ]]
 }
 
 @test "throttles the refresh to once per ttl" {
@@ -201,7 +303,7 @@ EOF
 
 @test "an invalid ttl falls back to the default" {
   write_cache
-  use_config "{\"version\":1,\"lines\":[[\"flow\"]],\"widgets\":{\"flow\":{\"refresh\":false,\"cache\":\"$JSON\",\"ttl\":\"sempre\"}}}"
+  quiet_config_with '"ttl":"sempre"'
   run widget_flow_render
   [[ "$output" == *"flow:"* ]]
 }

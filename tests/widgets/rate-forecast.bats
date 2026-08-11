@@ -73,10 +73,22 @@ setup() {
   [[ "$output" == *$'\033[33m'* ]]
 }
 
-@test "level ok paints green" {
+@test "level ok hides the projection" {
+  # Uma projeção tranquila não muda decisão nenhuma: quem não vê aviso já sabia
+  # seguir em frente. A seta fica reservada para o que pede reação, e o olho não
+  # aprende a ignorá-la.
   export FAKE_FORECAST_OUT="ok 55"
   run widget_rate_forecast_render
-  [[ "$output" == *$'\033[32m'* ]]
+  [[ "$output" == *"42%"* ]]
+  [[ "$output" != *"55%"* ]]
+  [[ "$output" != *"→"* ]]
+}
+
+@test "level ok still paints the usage on its own scale" {
+  export FAKE_FORECAST_OUT="ok 55"
+  SL_5H_PCT="85"
+  run widget_rate_forecast_render
+  [[ "$output" == *$'\033[31m'"85%"* ]]
 }
 
 @test "missing helper still shows the percentage" {
