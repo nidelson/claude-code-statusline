@@ -80,10 +80,15 @@ Para ligar na mão, aponte `statusLine.command` para o `bin/statusline.sh`:
   "statusLine": {
     "type": "command",
     "command": "bash /caminho/para/claude-code-statusline/bin/statusline.sh",
+    "padding": 0,
     "refreshInterval": 5
   }
 }
 ```
+
+`padding: 0` remove o recuo de duas colunas que o Claude Code aplica por padrão.
+Os widgets já compõem o próprio espaçamento, e a largura importa: a primeira
+linha do default passa de oitenta colunas em repositório de nome longo.
 
 ## Configuração
 
