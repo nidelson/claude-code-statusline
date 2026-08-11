@@ -43,9 +43,41 @@ mkdir -p "$CACHE_DIR" 2>/dev/null
 mkdir "$LOCK_DIR" 2>/dev/null || exit 0
 trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
 
+# Registra a falha SEM apagar a última leitura boa.
+#
+# Antes, qualquer erro — token ausente, rede fora, gateway de mau humor —
+# gravava `{ok:false}` por cima do payload inteiro, e a statusline perdia o
+# número que já tinha. Uma sessão sem ANTHROPIC_AUTH_TOKEN zerava o widget a
+# cada TTL. Um número de dois minutos atrás é verdadeiro; nenhum número não é
+# mais honesto que ele, é só menos útil.
+#
+# Agora a falha vira um campo `error` ao lado dos dados preservados. `ok`
+# continua true porque os dados seguem válidos — o que falhou foi a
+# atualização, não a leitura. `fetched_at` fica onde estava, marcando a idade
+# real do dado; `error.at` marca a tentativa.
+#
+# Sem leitura boa anterior — primeira execução numa máquina sem acesso — cai no
+# formato antigo, e aí o widget mostra só o aviso.
 write_error() {
-  jq -n --arg msg "$1" --argjson fetched_at "$(date +%s)" \
-    '{ok: false, message: $msg, fetched_at: $fetched_at}' > "$CONSUMPTION_CACHE" 2>/dev/null
+  local msg="$1" now prev
+  now="$(date +%s)"
+
+  # `del(.error)` impede que erros sucessivos se empilhem; o `at` novo
+  # sobrescreve o antigo, e `fetched_at` não é tocado em nenhum dos dois casos.
+  if [ -s "$CONSUMPTION_CACHE" ] &&
+     prev="$(jq -e 'select(.ok == true) | del(.error)' "$CONSUMPTION_CACHE" 2>/dev/null)"; then
+    # Arquivo temporário e mv: o widget pode estar lendo este arquivo agora, e
+    # um redirecionamento direto o exporia truncado.
+    if printf '%s' "$prev" | jq --arg msg "$msg" --argjson at "$now" \
+         '. + {error: {message: $msg, at: $at}}' > "$CONSUMPTION_CACHE.tmp" 2>/dev/null; then
+      mv -f "$CONSUMPTION_CACHE.tmp" "$CONSUMPTION_CACHE" 2>/dev/null
+    fi
+    rm -f "$CONSUMPTION_CACHE.tmp" 2>/dev/null
+  else
+    jq -n --arg msg "$msg" --argjson fetched_at "$now" \
+      '{ok: false, message: $msg, fetched_at: $fetched_at}' > "$CONSUMPTION_CACHE" 2>/dev/null
+  fi
+
   chmod 600 "$CONSUMPTION_CACHE" 2>/dev/null
 }
 

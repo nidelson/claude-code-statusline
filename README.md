@@ -444,16 +444,16 @@ A cor é semântica — a opção `color` não se aplica.
 ### `flow`
 
 Consumo na CI&T Flow Platform: as duas cotas, cada uma com uso atual e previsão
-de estouro.
+de estouro, mais um segmento de status para o que não cabe num percentual.
 
 ```
-💰 24%→92% · 💬 61%
+💰 24%→92% · 💬 14% · ∞
 ```
 
 | Opção | Valores | Padrão |
 |---|---|---|
 | `metric` | `budget`, `requests`; omita para mostrar as duas | omitido |
-| `separator` | texto entre as duas cotas | `·` |
+| `separator` | texto entre os segmentos | `·` |
 | `ttl` | segundos entre buscas | `300` |
 | `refresh` | `true`, `false` — se deve buscar | `true` |
 | `cache` | caminho do JSON buscado | `$XDG_CACHE_HOME/flow-consumption.json` |
@@ -468,12 +468,29 @@ janelas: `budget` conta dinheiro, `requests` conta chamadas, e estourar uma não
 diz nada sobre a outra. As duas ficam visíveis, e `metric` filtra em vez de
 escolher — deixe de fora para ver ambas, defina para ver só uma.
 
-Os dois glifos respeitam `icons: false`, e nesse modo os rótulos são as palavras
-inteiras:
+**O terceiro segmento é o status**, e só aparece quando tem o que dizer:
+
+| Marca | Significa |
+|---|---|
+| `∞` esmaecido | a cota de chamadas não tem teto |
+| `⚠` vermelho | a última busca falhou |
+
+O `∞` é fato calmo e tem peso calmo: ele explica por que o percentual ao lado não
+vai bloquear ninguém. O `⚠` pede reação, então é vermelho — e por isso é
+monocromático, e não emoji: emoji têm cor própria e ignoram ANSI, de modo que não
+existe wifi vermelho em emoji, e um aviso que não consegue ficar vermelho não é
+aviso.
+
+Os dois podem aparecer juntos. Quando o `⚠` está lá, os números ao lado são a
+última leitura boa — o fetcher preserva o payload e apenas marca a falha, então
+`⚠` quer dizer "não consegui atualizar", não "não sei de nada". Sem leitura
+anterior nenhuma, o aviso aparece sozinho.
+
+Todos os glifos respeitam `icons: false`, e nesse modo viram palavras inteiras:
 
 ```
-icons: true    💰 24%→92% · 💬 61%
-icons: false   budget:24%→92% · requests:61%
+icons: true    💰 24%→92% · 💬 14% · ∞
+icons: false   budget:24%→92% · requests:14% · unlimited
 ```
 
 `budget:` e `requests:` são mais longos que uma abreviação seria, de propósito:
@@ -487,10 +504,11 @@ pelo próprio número: verde abaixo de 80%, amarelo a partir de 80%, vermelho a
 partir de 100%. E, também como lá, projeção tranquila não vira texto — no exemplo
 acima `req` não mostra seta porque o ritmo dela não pede reação.
 
-**O segmento some quando o número não decide nada.** `requests` marcado como
-`unlimited` pela API é percentual de um limite que não se aplica, e desaparece;
-uma métrica ausente do payload desaparece junto. Projeção nula também não vira
-`→0%` — a API nunca afirmou zero, ela afirmou nada.
+**Um segmento some quando não há número.** Métrica ausente do payload desaparece;
+projeção nula não vira `→0%`, porque a API nunca afirmou zero, ela afirmou nada.
+Cota `unlimited`, por outro lado, **não** some: a API manda `unlimited: true`
+junto com limite, contagem e percentual, e esconder tudo isso jogava fora dado
+verdadeiro. O teto ausente é dito pelo `∞`, ao lado.
 
 **Buscar e mostrar são coisas separadas, e os relógios delas também.** O
 `bin/flow-consumption.sh` fala com a rede e escreve JSON; o widget apenas lê esse
@@ -507,9 +525,20 @@ com frequência demais.
 O marcador é escrito *antes* de a busca ser disparada, não depois: dois repaints
 caindo quase no mesmo instante não podem virar duas buscas.
 
-**Sem token, sem ruído.** O fetcher precisa do `ANTHROPIC_AUTH_TOKEN` no
-ambiente. Sem ele, registra `{"ok": false}` e o widget não renderiza nada. Uma
-máquina sem acesso ao Flow não vê erro — vê uma statusline sem aquele pedaço.
+**Falha não apaga o que já foi lido.** O fetcher precisa do
+`ANTHROPIC_AUTH_TOKEN` no ambiente. Quando ele falta — ou quando a rede cai, ou o
+gateway responde errado — a busca registra um campo `error` **ao lado dos dados
+que já estavam lá**, em vez de gravar `{"ok": false}` por cima de tudo. O
+`fetched_at` continua marcando a idade do dado, e `error.at` marca a tentativa.
+
+Isso importa mais do que parece: uma sessão iniciada sem o token zerava o widget
+a cada TTL, e o número que existia dois minutos antes se perdia. Um número de dois
+minutos atrás é verdadeiro; apagá-lo não é mais honesto, é só menos útil.
+
+Numa máquina que nunca conseguiu ler nada, não há o que preservar, e o widget
+mostra só o `⚠`. Numa máquina que nem tem o `flow` na configuração, o arquivo de
+cache não existe e o widget não renderiza nada — silêncio continua sendo o
+comportamento de quem não pediu esse widget.
 
 ### `command`
 
