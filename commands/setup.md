@@ -58,8 +58,8 @@ existir, crie:
 {
   "version": 1,
   "lines": [
-    ["repo", "branch", "git-status", "worktree", "velocity", "cache", "model", "cost"],
-    ["context", "rate-forecast", "flow", "sprint"]
+    ["repo", "branch", "git-status", "worktree", "velocity", "cache", "model", "cost", "flow"],
+    ["context", "rate-forecast", "sprint"]
   ],
   "separator": "|",
   "icons": true,
