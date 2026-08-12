@@ -78,3 +78,22 @@ setup() {
   sl_parse_stdin '{"cache_read_input_tokens":42}'
   [ "$SL_CACHE_READ" = "42" ]
 }
+
+@test "exposes the transcript path" {
+  sl_parse_stdin '{"transcript_path":"/tmp/session.jsonl"}'
+  [ "$SL_TRANSCRIPT" = "/tmp/session.jsonl" ]
+}
+
+@test "the transcript path is empty when absent" {
+  # Contraprova: o mesmo parse com o campo presente tem de preenchê-lo, senão
+  # este teste passaria com a variável nunca sendo atribuída.
+  sl_parse_stdin '{"model":{"display_name":"X"}}'
+  [ "$SL_TRANSCRIPT" = "" ]
+  sl_parse_stdin '{"transcript_path":"/tmp/a.jsonl"}'
+  [ "$SL_TRANSCRIPT" = "/tmp/a.jsonl" ]
+}
+
+@test "the transcript path is empty when the json is malformed" {
+  sl_parse_stdin 'nao e json'
+  [ "$SL_TRANSCRIPT" = "" ]
+}

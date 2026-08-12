@@ -126,3 +126,56 @@ setup() {
   run sl_reset_label 1800006480 1800000000
   [ "$status" -eq 1 ]
 }
+
+@test "ttl format keeps seconds below a minute" {
+  [ "$(sl_fmt_ttl 47)" = "47s" ]
+}
+
+@test "ttl format pairs minutes with seconds" {
+  [ "$(sl_fmt_ttl 252)" = "4m12s" ]
+}
+
+@test "ttl format drops zeroed seconds" {
+  [ "$(sl_fmt_ttl 240)" = "4m" ]
+}
+
+@test "ttl format pairs hours with minutes" {
+  [ "$(sl_fmt_ttl 3720)" = "1h2m" ]
+}
+
+@test "ttl format drops zeroed minutes" {
+  [ "$(sl_fmt_ttl 3600)" = "1h" ]
+}
+
+@test "ttl format reads zero as zero seconds" {
+  [ "$(sl_fmt_ttl 0)" = "0s" ]
+}
+
+@test "ttl format survives junk" {
+  [ "$(sl_fmt_ttl abc)" = "0s" ]
+  [ "$(sl_fmt_ttl '')" = "0s" ]
+}
+
+@test "the coarse countdown keeps its sub-minute floor" {
+  # Contraprova de convivência: sl_fmt_ttl não pode ter sido implementado
+  # trocando o piso da função existente. O reset de 5h do rate-forecast
+  # depende de "<1m" — com segundos ali a linha pisca a cada repaint.
+  [ "$(sl_fmt_countdown 47)" = "<1m" ]
+  [ "$(sl_fmt_ttl 47)" = "47s" ]
+}
+
+@test "ttl format drops seconds above five minutes" {
+  # 350s é 5m50s. Acima do limite, o segundo é ruído que pisca a cada repaint.
+  [ "$(sl_fmt_ttl 350)" = "5m" ]
+}
+
+@test "ttl format keeps seconds right below five minutes" {
+  # Contraprova da faixa: um segundo abaixo do limite, os segundos voltam.
+  [ "$(sl_fmt_ttl 299)" = "4m59s" ]
+  [ "$(sl_fmt_ttl 300)" = "5m" ]
+}
+
+@test "ttl format drops seconds on a long window" {
+  # 3480s é 58m, a leitura típica de uma conta com TTL de uma hora.
+  [ "$(sl_fmt_ttl 3480)" = "58m" ]
+}
