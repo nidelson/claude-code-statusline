@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # flow-consumption — consulta consumo de budget (USD) e de requests da
 # Flow Platform (CI&T) e grava em cache pro statusline ler. NUNCA chamado de
 # forma síncrona pelo statusline (rede pode ser lenta) — é disparado em

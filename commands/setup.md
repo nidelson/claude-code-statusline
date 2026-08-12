@@ -5,11 +5,52 @@ description: Instala a claude-code-statusline no settings.json
 Configure este plugin como a statusline do usuário. Siga os passos na ordem e
 relate no final o que foi feito.
 
+## Passo 0: Identificar a plataforma
+
+Rode `uname -s` e guarde o resultado.
+
+| saída | plataforma | como proceder |
+|---|---|---|
+| `Darwin` | macOS | siga normalmente |
+| `Linux` | Linux, ou Claude Code dentro do WSL | siga normalmente; no WSL tudo é Linux |
+| `MINGW64_NT-*`, `MSYS_NT-*` | Git Bash no Windows | siga, com as ressalvas dos passos 1 e 2 |
+| o comando não existe | PowerShell sem Git Bash | **pare aqui**, ver abaixo |
+
+Para distinguir Linux de WSL, quando importar: `grep -qi microsoft /proc/version`.
+
+**Quando `uname` não existe**, o Claude Code está rodando via PowerShell sem Git
+Bash instalado. Nenhum script deste plugin roda nesse ambiente.
+
+**Não escreva nada no `settings.json`.** Configurar uma statusline que não
+executa troca a linha padrão do Claude Code por uma linha vazia, e o usuário não
+tem como descobrir o motivo — ele perde o que tinha e não ganha nada.
+
+Explique as duas saídas e pare:
+
+1. Instalar o Git for Windows (<https://git-scm.com/download/win>), que traz o
+   Git Bash. O Claude Code passa a rotear a statusline por ele automaticamente.
+2. Rodar o Claude Code dentro do WSL, onde o plugin funciona sem adaptação.
+
 ## Passo 1: Localizar o entrypoint
 
 O entrypoint é `${CLAUDE_PLUGIN_ROOT}/bin/statusline.sh`. Confirme que existe e
 resolva para caminho absoluto — o `settings.json` não expande variáveis de
 plugin.
+
+**No Git Bash, converta o caminho com `cygpath -m`:**
+
+```bash
+cygpath -m "$CLAUDE_PLUGIN_ROOT/bin/statusline.sh"
+# → C:/Users/nome/.claude/plugins/.../bin/statusline.sh
+```
+
+O caminho que o Git Bash usa internamente (`/c/Users/...`) não serve aqui: quem
+lê o `settings.json` é o Claude Code, não o shell.
+
+Use `-m`, que produz barras normais. **Nunca `-w`**, que produz contrabarras: o
+Git Bash as trata como escape, o caminho chega ao runner sem separadores e o
+comando falha sem erro nenhum — o pior modo de falha possível, porque não deixa
+rastro para o usuário seguir.
 
 ## Passo 2: Verificar as dependências
 
@@ -17,7 +58,9 @@ Rode `command -v jq` e `command -v git`.
 
 - Sem `jq`, a statusline ainda renderiza mas mostra quase nada, porque
   praticamente todo campo vem do parse do JSON da sessão. Avise e sugira
-  `brew install jq` no macOS ou o gerenciador de pacotes equivalente.
+  `brew install jq` no macOS ou o gerenciador de pacotes equivalente. No
+  Windows o `jq` **não** acompanha o Git Bash: `winget install jqlang.jq` ou
+  `scoop install jq`.
 - Sem `git`, apenas os widgets que dependem de git ficam em silêncio.
 
 Nenhuma das duas é fatal. Não aborte a instalação por dependência faltando.
