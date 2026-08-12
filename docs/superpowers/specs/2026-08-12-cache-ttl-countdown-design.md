@@ -236,9 +236,15 @@ incomodarem em uso real, viram opção depois.
 
 ## Testes
 
-Fixture de transcript própria em `tests/fixtures/`, com entradas `assistant` de
-ambos os TTLs, entradas sem gravação, e entradas de outros tipos entre elas para
-exercitar a janela de 400 linhas.
+Transcript escrito por helper no diretório temporário do teste, um por caso, como
+`flow.bats` já faz com o payload do Flow — e não fixture estática em
+`tests/fixtures/`, que forçaria um arquivo por combinação. Os casos precisam de
+entradas `assistant` de ambos os TTLs, entradas sem gravação, entradas de outros
+tipos entre elas, e uma última linha truncada.
+
+Cada escrita usa um nome de arquivo novo. `cache_by_mtime` tem resolução de um
+segundo e a chave é derivada do caminho, então dois transcritos diferentes
+escritos no mesmo segundo sobre o mesmo caminho colidiriam no cache.
 
 Tempo injetado por `SL_NOW`, como no rate-forecast e no flow — a suíte não pode
 depender do relógio, sob pena de falhar sozinha de madrugada ou só no CI, que
