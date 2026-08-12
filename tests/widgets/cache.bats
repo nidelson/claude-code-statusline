@@ -56,11 +56,11 @@ use_config() {
   [[ "$output" == *"70%"* ]]
 }
 
-@test "labels the number" {
+@test "marks the number with the cloud glyph" {
   # Três percentuais podem dividir a mesma linha — contexto, rate limit e este.
-  # Sem rótulo não há como saber qual é qual.
+  # Sem marca não há como saber qual é qual.
   run widget_cache_render
-  [[ "$output" == *"cache:"* ]]
+  [[ "$(sl_test_plain "$output")" == *"☁"* ]]
 }
 
 @test "renders nothing when every counter is zero" {
@@ -124,15 +124,15 @@ use_config() {
   [[ "$output" == *"100%"* ]]
 }
 
-@test "the label option replaces the prefix" {
-  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"label":"c:"}}}'
+@test "the label option replaces the prefix when icons are off" {
+  use_config '{"version":1,"icons":false,"lines":[["cache"]],"widgets":{"cache":{"label":"c:"}}}'
   run widget_cache_render
-  [[ "$output" == *"c:70%"* ]]
   [[ "$output" != *"cache:"* ]]
+  [[ "$(sl_test_plain "$output")" == *"c:70%"* ]]
 }
 
 @test "an empty label drops the prefix entirely" {
-  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"label":""}}}'
+  use_config '{"version":1,"icons":false,"lines":[["cache"]],"widgets":{"cache":{"label":""}}}'
   run widget_cache_render
   [[ "$output" != *"cache"* ]]
   [[ "$output" == *"70%"* ]]
@@ -224,4 +224,95 @@ use_config() {
   SL_NOW=1234567890
   run _cache_now
   [ "$output" = "1234567890" ]
+}
+
+@test "shows the countdown next to the hit rate" {
+  write_transcript "$(turn 2027-01-15T07:58:00Z 0 500)"
+  run widget_cache_render
+  [ "$(sl_test_plain "$output")" = "☁ 70%·3m" ]
+}
+
+@test "the countdown carries seconds" {
+  # 07:57:48Z + 300s expira 08:02:48Z; faltam 168s = 2m48s.
+  write_transcript "$(turn 2027-01-15T07:57:48Z 0 500)"
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·2m48s"* ]]
+}
+
+@test "a one hour ttl counts from the same stamp" {
+  # 07:58:00Z + 3600s expira 08:58:00Z; faltam 3480s = 58m.
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·58m"* ]]
+}
+
+@test "an expired cache reads as cold" {
+  # 07:50:00Z + 300s expirou às 07:55:00Z, cinco minutos atrás.
+  write_transcript "$(turn 2027-01-15T07:50:00Z 0 500)"
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·cold"* ]]
+}
+
+@test "the countdown is green with more than three minutes left" {
+  # 07:58:01Z + 300s deixa 181s.
+  write_transcript "$(turn 2027-01-15T07:58:01Z 0 500)"
+  run widget_cache_render
+  [[ "$output" == *$'\033[32m'*"3m1s"* ]]
+}
+
+@test "the countdown turns yellow under three minutes" {
+  # 07:57:59Z + 300s deixa 179s.
+  write_transcript "$(turn 2027-01-15T07:57:59Z 0 500)"
+  run widget_cache_render
+  [[ "$output" == *$'\033[33m'*"2m59s"* ]]
+}
+
+@test "the countdown turns red under one minute" {
+  # 07:55:59Z + 300s deixa 59s.
+  write_transcript "$(turn 2027-01-15T07:55:59Z 0 500)"
+  run widget_cache_render
+  [[ "$output" == *$'\033[31m'*"59s"* ]]
+}
+
+@test "a cold cache is red" {
+  write_transcript "$(turn 2027-01-15T07:50:00Z 0 500)"
+  run widget_cache_render
+  [[ "$output" == *$'\033[31m'*"cold"* ]]
+}
+
+@test "the countdown survives without a hit rate" {
+  # current_usage vem null entre trocas — e é justamente parado, entre trocas,
+  # que o countdown decide alguma coisa.
+  SL_CACHE_READ=0
+  SL_CACHE_CREATE=0
+  SL_INPUT_TOKENS=0
+  write_transcript "$(turn 2027-01-15T07:58:00Z 0 500)"
+  run widget_cache_render
+  [ "$(sl_test_plain "$output")" = "☁ 3m" ]
+}
+
+@test "the hit rate survives without a countdown" {
+  SL_TRANSCRIPT=""
+  run widget_cache_render
+  [ "$(sl_test_plain "$output")" = "☁ 70%" ]
+}
+
+@test "renders nothing when neither side has anything to say" {
+  SL_CACHE_READ=0
+  SL_CACHE_CREATE=0
+  SL_INPUT_TOKENS=0
+  SL_TRANSCRIPT=""
+  run widget_cache_render
+  [ "$output" = "" ]
+  # Contraprova: com o transcript de volta, o widget tem de reaparecer.
+  write_transcript "$(turn 2027-01-15T07:58:00Z 0 500)"
+  run widget_cache_render
+  [ "$(sl_test_plain "$output")" = "☁ 3m" ]
+}
+
+@test "the glyph carries a space" {
+  # ☁ tem largura ambígua em Unicode: colado num dígito disputa a mesma célula
+  # em boa parte dos terminais. Mesmo motivo do ⟳ em sl_stamp_label.
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == "☁ "* ]]
 }
