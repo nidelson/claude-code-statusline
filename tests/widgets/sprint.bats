@@ -184,3 +184,41 @@ use_config() {
 @test "returns zero when it renders nothing" {
   widget_sprint_render >/dev/null
 }
+
+@test "labels the sprint with the methodology" {
+  make_yaml
+  export FAKE_SPRINT_OUT="55/85 4 0"
+  run widget_sprint_render
+  [ "$(sl_test_plain "$output")" = "BMAD 55/85 ▸4" ]
+}
+
+@test "the label option replaces the methodology name" {
+  make_yaml
+  use_config '{"version":1,"lines":[["sprint"]],"widgets":{"sprint":{"label":"SCRUM"}}}'
+  run widget_sprint_render
+  [[ "$output" != *"BMAD"* ]]
+  [[ "$(sl_test_plain "$output")" == "SCRUM 7/10"* ]]
+}
+
+@test "an empty label drops the prefix" {
+  make_yaml
+  # Contraprova primeiro: sem a opção há prefixo, senão este teste passaria
+  # tanto por a opção funcionar quanto por o prefixo nunca ter existido.
+  run widget_sprint_render
+  [ "$(sl_test_plain "$output")" = "BMAD 7/10 ▸2 ⊙1" ]
+  use_config '{"version":1,"lines":[["sprint"]],"widgets":{"sprint":{"label":""}}}'
+  run widget_sprint_render
+  [ "$(sl_test_plain "$output")" = "7/10 ▸2 ⊙1" ]
+}
+
+@test "the label reaches the cache key" {
+  # _sprint_compute roda sob cache_by_mtime. Sem o label na chave, trocar a
+  # opção não muda a saída até o arquivo de sprint ser tocado — e o mtime tem
+  # resolução de um segundo, então nem tocá-lo garantiria.
+  make_yaml
+  run widget_sprint_render
+  [[ "$(sl_test_plain "$output")" == "BMAD "* ]]
+  use_config '{"version":1,"lines":[["sprint"]],"widgets":{"sprint":{"label":"XP"}}}'
+  run widget_sprint_render
+  [[ "$(sl_test_plain "$output")" == "XP "* ]]
+}
