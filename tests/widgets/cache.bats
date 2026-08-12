@@ -5,11 +5,36 @@ setup() {
   source "$PROJECT_ROOT/lib/core.sh"
   source "$PROJECT_ROOT/lib/num.sh"
   source "$PROJECT_ROOT/lib/config.sh"
+  source "$PROJECT_ROOT/lib/timefmt.sh"
+  source "$PROJECT_ROOT/lib/cache.sh"
   source "$PROJECT_ROOT/widgets/cache.sh"
   SL_CONFIG_RAW=""
   SL_CACHE_READ=700
   SL_CACHE_CREATE=200
   SL_INPUT_TOKENS=100
+  SL_TRANSCRIPT=""
+  # O cache em disco não pode sair do diretório do teste.
+  SL_CACHE_DIR="$BATS_TEST_TMPDIR/cache"
+  # Relógio fixo. 1800000000 é 2027-01-15T08:00:00Z.
+  SL_NOW=1800000000
+  SL_T_N=0
+}
+
+# Escreve um transcript e aponta SL_TRANSCRIPT para ele.
+#
+# Cada chamada usa um nome novo. O cache_by_mtime tem resolução de um segundo,
+# então dois transcritos diferentes escritos no mesmo segundo sobre o mesmo
+# caminho colidiriam — e a chave do cache é derivada do caminho.
+write_transcript() {
+  SL_T_N=$(( SL_T_N + 1 ))
+  SL_TRANSCRIPT="$BATS_TEST_TMPDIR/tr$SL_T_N.jsonl"
+  printf '%s\n' "$@" > "$SL_TRANSCRIPT"
+}
+
+# Uma entrada de assistant: carimbo, gravação de 1h, gravação de 5m.
+turn() {
+  printf '{"type":"assistant","message":{"usage":{"cache_read_input_tokens":100,"cache_creation_input_tokens":%d,"cache_creation":{"ephemeral_1h_input_tokens":%d,"ephemeral_5m_input_tokens":%d}}},"timestamp":"%s"}' \
+    "$(( $2 + $3 ))" "$2" "$3" "$1"
 }
 
 use_config() {
@@ -118,4 +143,85 @@ use_config() {
   SL_CACHE_CREATE=0
   SL_INPUT_TOKENS=0
   widget_cache_render >/dev/null
+}
+
+@test "the probe reads timestamp and one hour ttl" {
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
+}
+
+@test "the probe reads a five minute ttl" {
+  write_transcript "$(turn 2027-01-15T07:58:00Z 0 500)"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 300" ]
+}
+
+@test "the probe takes the timestamp from the last turn" {
+  write_transcript \
+    "$(turn 2027-01-15T07:00:00Z 500 0)" \
+    "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
+}
+
+@test "the probe takes the ttl from the last turn that wrote" {
+  # A última troca foi servida inteira do cache e não gravou nada, então não
+  # identifica a janela; quem identifica é a anterior.
+  write_transcript \
+    "$(turn 2027-01-15T07:00:00Z 0 500)" \
+    "$(turn 2027-01-15T07:58:00Z 0 0)"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 300" ]
+}
+
+@test "the probe ignores lines that are not assistant turns" {
+  write_transcript \
+    "$(turn 2027-01-15T07:00:00Z 500 0)" \
+    '{"type":"user","timestamp":"2027-01-15T09:00:00Z"}' \
+    '{"type":"attachment","timestamp":"2027-01-15T09:00:00Z"}'
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:00:00Z 3600" ]
+}
+
+@test "the probe survives a truncated last line" {
+  # O transcript da sessão em curso está sendo escrito enquanto se lê.
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  printf '{"type":"assis' >> "$SL_TRANSCRIPT"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
+}
+
+@test "the probe gives nothing when no turn ever wrote" {
+  write_transcript "$(turn 2027-01-15T07:58:00Z 0 0)"
+  run _cache_probe
+  [ "$output" = "" ]
+  # Contraprova: a mesma sonda com uma gravação presente tem de responder.
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
+}
+
+@test "the probe gives nothing when the transcript is missing" {
+  SL_TRANSCRIPT="$BATS_TEST_TMPDIR/nao-existe.jsonl"
+  run _cache_probe
+  [ "$output" = "" ]
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
+}
+
+@test "the probe gives nothing when the transcript path is empty" {
+  SL_TRANSCRIPT=""
+  run _cache_probe
+  [ "$output" = "" ]
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
+}
+
+@test "the clock comes from SL_NOW when it is set" {
+  SL_NOW=1234567890
+  run _cache_now
+  [ "$output" = "1234567890" ]
 }
