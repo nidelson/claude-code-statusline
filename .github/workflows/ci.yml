@@ -10,8 +10,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    # O runner Windows roda pwsh por padrão. Fixar bash aqui faz todos os passos
+    # usarem o Git Bash — que é exatamente o interpretador pelo qual o Claude
+    # Code roteia a statusline naquela plataforma quando ele está instalado.
+    # Testar sob outro shell não diria nada sobre o caso real.
+    #
+    # `shell: bash` explícito também liga `pipefail`, que o default implícito não
+    # tem. Por isso os passos abaixo trocaram `cmd --version | head -1` por uma
+    # forma sem pipe: sob pipefail, um `head` que fecha o pipe antes de quem
+    # escrever terminar derruba o passo inteiro por SIGPIPE.
+    #
+    # Medido: com a saída curta de `--version` isso não dispara, porque tudo cabe
+    # no buffer do pipe antes do fechamento. Ou seja, a forma antiga passaria —
+    # mas passaria por caber, não por estar certa, e o dia em que a saída crescer
+    # a falha aparece no CI e não no comando que a causou.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -23,11 +40,18 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y bats jq
 
+      # O runner windows-latest já traz Git Bash e jq; falta o bats, que não tem
+      # pacote nativo e vem por npm.
+      - name: Install bats (Windows)
+        if: runner.os == 'Windows'
+        run: npm install -g bats
+
       - name: Record tool versions
         run: |
-          bash --version | head -1
+          bash -c 'printf "bash %s\n" "$BASH_VERSION"'
           bats --version
           jq --version
+          uname -s
 
       - name: Run the test suite
         run: bats -r tests
@@ -40,7 +64,7 @@ jobs:
       - name: Smoke test under system bash 3.2 (macOS)
         if: runner.os == 'macOS'
         run: |
-          /bin/bash --version | head -1
+          /bin/bash -c 'printf "system bash %s\n" "$BASH_VERSION"'
           out="$(/bin/bash bin/statusline.sh < tests/fixtures/session.json 2>err.log)"
           printf 'stdout: %s\n' "$out"
           # A statusline nunca sai com status diferente de zero por contrato, e
