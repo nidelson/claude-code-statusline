@@ -193,7 +193,7 @@ EOF
   SL_NOW=1800000000
   SL_5H_RESET=1800006480
   run widget_rate_forecast_render
-  [[ "$output" =~ [0-9]{2}:[0-9]{2}.1h48m ]]
+  [[ "$output" =~ [0-9]{2}:[0-9]{2}·1h48m ]]
 }
 
 @test "shows the reset weekday and countdown over a day" {
@@ -201,7 +201,7 @@ EOF
   SL_NOW=1800000000
   SL_5H_RESET=1800454000
   run widget_rate_forecast_render
-  [[ "$output" =~ [A-Za-z]{3}.5d6h ]]
+  [[ "$output" =~ [A-Za-z]{3}·5d6h ]]
 }
 
 @test "normalizes a reset given in milliseconds" {

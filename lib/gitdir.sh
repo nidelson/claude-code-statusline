@@ -30,10 +30,26 @@ _sl_git_paths_compute() {
 
   [ -n "$gitdir" ] && [ -n "$common" ] || return 0
 
-  case "$common" in
-    /*) ;;
-    *) common="$(cd "$SL_CWD" && cd "$common" 2>/dev/null && pwd -P)" || return 0 ;;
-  esac
+  # Os dois passam pelo MESMO normalizador, e é isso que os torna comparáveis.
+  #
+  # A versão anterior normalizava só o `common`, e confiava no formato que o git
+  # devolvia para o `gitdir`. Funciona onde os dois formatos coincidem, que é
+  # macOS e Linux. No Git for Windows não coincidem: `--absolute-git-dir` sai em
+  # formato Windows e `pwd -P` do MSYS sai em formato Unix, descrevendo o mesmo
+  # diretório com strings diferentes —
+  #
+  #   gitdir  C:/Users/nome/repo/.git
+  #   common  /c/Users/nome/repo/.git
+  #
+  # — e como a igualdade entre os dois é o que separa árvore principal de
+  # worktree linkada, toda árvore principal virava worktree ali.
+  #
+  # É a terceira armadilha de normalização de caminho neste arquivo, depois do
+  # `.git` relativo e do symlink /var do macOS. As três têm a mesma forma:
+  # comparar caminhos que o sistema escreve de mais de um jeito.
+  gitdir="$(cd "$gitdir" 2>/dev/null && pwd -P)" || return 0
+  common="$(cd "$SL_CWD" 2>/dev/null && cd "$common" 2>/dev/null && pwd -P)" || return 0
+  [ -n "$gitdir" ] && [ -n "$common" ] || return 0
 
   printf '%s\t%s\t%s' "$gitdir" "$common" "$top"
 }

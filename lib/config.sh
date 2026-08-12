@@ -39,7 +39,7 @@ sl_config_load() {
 
   raw="$(cat "$path" 2>/dev/null)" || raw=""
 
-  if ! printf '%s' "$raw" | jq -e . >/dev/null 2>&1; then
+  if ! printf '%s' "$raw" | sl_jq -e . >/dev/null 2>&1; then
     SL_CONFIG_LINES="$SL_CONFIG_DEFAULT_LINES"
     SL_CONFIG_SEP="$SL_CONFIG_DEFAULT_SEP"
     SL_CONFIG_ICONS="$SL_CONFIG_DEFAULT_ICONS"
@@ -49,10 +49,10 @@ sl_config_load() {
 
   SL_CONFIG_RAW="$raw"
 
-  lines="$(printf '%s' "$raw" | jq -r '.lines // [] | .[] | join(" ")' 2>/dev/null)" || lines=""
-  sep="$(printf '%s' "$raw" | jq -r '.separator // "|"' 2>/dev/null)" || sep=""
+  lines="$(printf '%s' "$raw" | sl_jq -r '.lines // [] | .[] | join(" ")' 2>/dev/null)" || lines=""
+  sep="$(printf '%s' "$raw" | sl_jq -r '.separator // "|"' 2>/dev/null)" || sep=""
   # jq devolve "1"/"0" para o booleano; ausente vira o default.
-  icons="$(printf '%s' "$raw" | jq -r 'if .icons == null then empty elif .icons then "1" else "0" end' 2>/dev/null)" || icons=""
+  icons="$(printf '%s' "$raw" | sl_jq -r 'if .icons == null then empty elif .icons then "1" else "0" end' 2>/dev/null)" || icons=""
   SL_CONFIG_ICONS="${icons:-$SL_CONFIG_DEFAULT_ICONS}"
 
   if [ -z "$lines" ]; then
@@ -83,7 +83,7 @@ sl_config_widget_opt() {
     printf '%s' "$default"
     return 0
   fi
-  value="$(printf '%s' "$SL_CONFIG_RAW" | jq -r --arg w "$widget" --arg k "$key" --arg d "$default" \
+  value="$(printf '%s' "$SL_CONFIG_RAW" | sl_jq -r --arg w "$widget" --arg k "$key" --arg d "$default" \
     '.widgets[$w][$k] | if . == null then $d else tostring end' 2>/dev/null)" || value="$default"
   printf '%s' "$value"
 }

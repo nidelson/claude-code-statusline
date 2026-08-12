@@ -90,6 +90,41 @@ Para ligar na mão, aponte `statusLine.command` para o `bin/statusline.sh`:
 Os widgets já compõem o próprio espaçamento, e a largura importa: a primeira
 linha do default passa de oitenta colunas em repositório de nome longo.
 
+## Plataformas
+
+| plataforma | estado |
+|---|---|
+| macOS | suportado, testado em CI |
+| Linux | suportado, testado em CI |
+| Windows dentro do WSL | suportado — ali tudo é Linux |
+| Windows com Git Bash | suportado, testado em CI |
+| Windows sem Git Bash | **não suportado** |
+
+No Windows, o Claude Code roteia a statusline pelo Git Bash quando ele está
+instalado, e pela PowerShell quando não está. Este plugin é bash, então precisa
+do primeiro caso — e o Git for Windows já traz o Git Bash.
+
+Sem Git Bash, o `setup` para e explica, em vez de escrever uma configuração que
+não pode funcionar. Uma statusline configurada que nunca executa é pior que
+nenhuma: o Claude Code deixa de mostrar a linha padrão e nada indica o motivo.
+
+Duas notas para quem usa Windows:
+
+- O `jq` não acompanha o Git Bash. Instale com `winget install jqlang.jq` ou
+  `scoop install jq`.
+- O caminho no `settings.json` precisa de barras normais (`C:/Users/...`). O
+  `setup` já escreve assim; editando à mão, não use contrabarras — o Git Bash as
+  consome como escape e a statusline falha em silêncio.
+
+No CI o Windows roda um subconjunto de 222 dos 546 testes: as bibliotecas, o
+núcleo e o entrypoint, que é onde as diferenças de plataforma aparecem. A suíte
+inteira leva mais de vinte minutos naquele runner, contra um minuto e meio nos
+outros.
+
+> O suporte a Windows é verificado no CI, sob o mesmo Git Bash que o Claude Code
+> usa. A execução ponta a ponta pelo próprio Claude Code ainda não foi
+> confirmada por um usuário — se você rodar, conte como foi.
+
 ## Configuração
 
 `${XDG_CONFIG_HOME:-$HOME/.config}/claude-code-statusline/config.json`:

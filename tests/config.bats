@@ -1,6 +1,7 @@
 load helper
 
 setup() {
+  source "$PROJECT_ROOT/lib/core.sh"
   source "$PROJECT_ROOT/lib/config.sh"
   TMPCFG="$BATS_TEST_TMPDIR/config.json"
 }

@@ -7,7 +7,7 @@
 sl_parse_stdin() {
   local json="$1" assignments
 
-  assignments="$(printf '%s' "$json" | jq -r '
+  assignments="$(printf '%s' "$json" | sl_jq -r '
     @sh "SL_MODEL=\(.model.display_name // "Unknown")",
     @sh "SL_MODEL_ID=\(.model.id // "")",
     @sh "SL_COST=\(.cost.total_cost_usd // 0)",

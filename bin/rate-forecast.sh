@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Previsão de estouro de janela de rate limit.
 #
 #   rate-forecast.sh <label> <used_pct> <resets_at_epoch> <duração_janela_s>

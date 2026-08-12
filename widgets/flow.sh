@@ -214,7 +214,7 @@ _flow_segment() {
   #
   # O jq entrega o valor como veio da API, sem arredondar. O arredondamento é o
   # de lib/num.sh, o mesmo que todos os outros percentuais usam.
-  raw="$(jq -r --arg m "$metric" '
+  raw="$(sl_jq -r --arg m "$metric" '
     if (.ok | not) then empty
     elif (.[$m] | not) then empty
     else "\(.[$m].percentage // 0) \(.[$m].projected_percentage // "-") \(.[$m].renewal_epoch // "-") \(.[$m].blocked_epoch // "-")"
@@ -297,7 +297,7 @@ _flow_status() {
 
   # `unlimited` só interessa se o segmento de requests estiver em cena: filtrado
   # para budget, o ∞ falaria de um número que não está na tela.
-  raw="$(jq -r --arg m "$metric" '
+  raw="$(sl_jq -r --arg m "$metric" '
     [ (if ($m != "budget" and .requests.unlimited == true) then "unlimited" else empty end),
       (if (.error != null or (.ok | not)) then "offline" else empty end) ]
     | join(" ")' "$file" 2>/dev/null)" || return 1
