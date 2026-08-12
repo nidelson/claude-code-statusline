@@ -136,11 +136,33 @@ jobs:
           [ "$G" = "$C" ] && echo "IGUAIS — correto" || echo "DIFEREM — esta é a causa B"
 
           echo "=============== golden ==============="
-          echo "-- saída do entrypoint contra a fixture --"
-          bash bin/statusline.sh < tests/fixtures/session.json > out.txt 2> err.txt
+          # Reproduz o setup de tests/golden.bats exatamente: config própria com
+          # duas linhas, cache isolado e um SL_FORECAST_BIN inexistente. A
+          # rodada anterior deste diagnóstico usou outra config, então as saídas
+          # não eram comparáveis e a causa continuou sem explicação.
+          export XDG_CONFIG_HOME="$(mktemp -d)/config"
+          export SL_CACHE_DIR="$(mktemp -d)/cache"
+          export SL_FORECAST_BIN="/path/that/does/not/exist"
+          mkdir -p "$XDG_CONFIG_HOME/claude-code-statusline"
+          printf '%s\n' '{"version":1,"lines":[["model"],["rate-forecast"]],"separator":"|"}' \
+            > "$XDG_CONFIG_HOME/claude-code-statusline/config.json"
+
+          out="$(bash bin/statusline.sh < tests/fixtures/session.json)"
           echo "exit=$?"
-          echo "stdout:"; cat -v out.txt; echo
-          echo "stderr:"; cat -v err.txt
+          echo "-- o glob do teste casa? --"
+          case "$out" in
+            *"Opus 5"*) echo 'glob *Opus 5* : CASA' ;;
+            *)          echo 'glob *Opus 5* : NAO CASA  <-- causa C' ;;
+          esac
+          echo "-- e as partes separadas? --"
+          case "$out" in *Opus*) echo '  *Opus*  : casa' ;; *) echo '  *Opus*  : NAO' ;; esac
+          case "$out" in *"5"*)  echo '  *5*     : casa' ;; *) echo '  *5*     : NAO' ;; esac
+          echo "-- bytes da saída, para ver CR ou separador estranho --"
+          printf '%s' "$out" | od -c | head -12
+          echo "-- e o que o jq extraiu do campo --"
+          jq -r '.model.display_name' tests/fixtures/session.json | od -c | head -3
+          echo "-- locale, que é o que quebrou as regex --"
+          locale 2>&1 | head -4
           exit 0
 
       - name: Run the platform-sensitive subset (Windows)

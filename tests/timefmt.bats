@@ -92,13 +92,13 @@ setup() {
 @test "reset under a day shows the clock" {
   run sl_reset_label 1800006480 1800000000
   [ "$status" -eq 0 ]
-  [[ "$output" =~ ^[0-9]{2}:[0-9]{2}.1h48m$ ]]
+  [[ "$output" =~ ^[0-9]{2}:[0-9]{2}·1h48m$ ]]
 }
 
 @test "reset over a day shows the weekday" {
   run sl_reset_label 1800454000 1800000000
   [ "$status" -eq 0 ]
-  [[ "$output" =~ ^[A-Za-z]{3}.5d6h$ ]]
+  [[ "$output" =~ ^[A-Za-z]{3}·5d6h$ ]]
 }
 
 # Uma semana é o limite do nome do dia: além dela "Tue" descreve várias terças,
@@ -107,13 +107,13 @@ setup() {
 @test "reset just under a week still shows the weekday" {
   run sl_reset_label 1800604799 1800000000
   [ "$status" -eq 0 ]
-  [[ "$output" =~ ^[A-Za-z]{3}.6d23h$ ]]
+  [[ "$output" =~ ^[A-Za-z]{3}·6d23h$ ]]
 }
 
 @test "reset over a week shows the day and month" {
   run sl_reset_label 1801728000 1800000000
   [ "$status" -eq 0 ]
-  [[ "$output" =~ ^[0-9]{2}[A-Za-z]{3}.20d$ ]]
+  [[ "$output" =~ ^[0-9]{2}[A-Za-z]{3}·20d$ ]]
 }
 
 @test "reset in the past is refused" {
