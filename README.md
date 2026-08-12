@@ -292,6 +292,7 @@ Taxa de acerto do cache de prompt e quanto falta para ele expirar:
 | Opção | Valores | Padrão |
 |---|---|---|
 | `countdown` | `always`, `near`, `off` | `always` |
+| `write` | `true`, `false` | `true` |
 | `label` | texto do prefixo com `icons: false`; `""` remove | `cache:` |
 
 **A taxa** é o total de leituras de cache sobre a soma de leituras, escritas de
@@ -320,6 +321,17 @@ duração humana. Numa conta com janela de uma hora ele quase não sai do verde,
 porque ali raramente se perde o cache; numa de cinco minutos acende o tempo
 todo, porque ali se perde mesmo.
 
+**O alarme** marca a troca que gravou muito no cache: `▲54k`. Amarelo a partir
+de 10k tokens, vermelho a partir de 50k, invisível abaixo disso.
+
+Gravação é o que custa caro — um token gravado vale vinte lidos — e ela é
+concentrada, não difusa: numa sessão medida, 33 trocas de 943 carregaram 85% de
+tudo que foi gravado. São compactação, skill grande injetada, arquivo grande
+lido, conjunto de ferramentas alterado. O limiar de 10k fica três vezes acima do
+p90 de gravação por troca, então o alarme não acende na rotina.
+
+`write: false` desliga.
+
 A janela não se configura: sai de `ephemeral_1h_input_tokens` e
 `ephemeral_5m_input_tokens` no transcript, então a mesma configuração serve a
 uma máquina com uma hora e a outra com cinco minutos.
@@ -332,7 +344,7 @@ existir e ser legível. Faltando qualquer um, ele some sozinho e a taxa
 permanece — e vice-versa: entre trocas, `current_usage` vem null e o widget
 mostra só o tempo.
 
-Com `icons: false` o glifo dá lugar ao texto de `label`.
+Com `icons: false` o `☁` dá lugar ao texto de `label`, e o `▲` a `w:`.
 
 A cor é semântica — a opção `color` não se aplica.
 

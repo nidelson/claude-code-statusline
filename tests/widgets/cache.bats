@@ -261,21 +261,24 @@ use_config() {
   # 07:58:01Z + 300s deixa 181s.
   write_transcript "$(turn 2027-01-15T07:58:01Z 0 500)"
   run widget_cache_render
-  [[ "$output" == *$'\033[32m'*"3m1s"* ]]
+    # A cor tem de estar COLADA ao texto. Com *cor*texto* o teste passaria pela
+  # cor do percentual, que ocupa a mesma linha e muda junto — foi assim que uma
+  # sabotagem do limiar do alarme não derrubou nada.
+  [[ "$output" == *$'\033[32m'"3m1s"* ]]
 }
 
 @test "the countdown turns yellow under three minutes" {
   # 07:57:59Z + 300s deixa 179s.
   write_transcript "$(turn 2027-01-15T07:57:59Z 0 500)"
   run widget_cache_render
-  [[ "$output" == *$'\033[33m'*"2m59s"* ]]
+  [[ "$output" == *$'\033[33m'"2m59s"* ]]
 }
 
 @test "the countdown turns red under one minute" {
   # 07:55:59Z + 300s deixa 59s.
   write_transcript "$(turn 2027-01-15T07:55:59Z 0 500)"
   run widget_cache_render
-  [[ "$output" == *$'\033[31m'*"59s"* ]]
+  [[ "$output" == *$'\033[31m'"59s"* ]]
 }
 
 @test "a cache expiring this very second is already cold" {
@@ -295,7 +298,7 @@ use_config() {
 @test "a cold cache is red" {
   write_transcript "$(turn 2027-01-15T07:50:00Z 0 500)"
   run widget_cache_render
-  [[ "$output" == *$'\033[31m'*"cold"* ]]
+  [[ "$output" == *$'\033[31m'"cold"* ]]
 }
 
 @test "the countdown survives without a hit rate" {
@@ -402,16 +405,16 @@ use_config() {
 @test "the alarm is yellow between ten and fifty thousand" {
   SL_CACHE_CREATE=20000
   run widget_cache_render
-  [[ "$output" == *$'\033[33m'*"▲20k"* ]]
+  [[ "$output" == *$'\033[33m'"▲20k"* ]]
 }
 
 @test "the alarm turns red from fifty thousand" {
   SL_CACHE_CREATE=49999
   run widget_cache_render
-  [[ "$output" == *$'\033[33m'*"▲50k"* ]]
+  [[ "$output" == *$'\033[33m'"▲50k"* ]]
   SL_CACHE_CREATE=50000
   run widget_cache_render
-  [[ "$output" == *$'\033[31m'*"▲50k"* ]]
+  [[ "$output" == *$'\033[31m'"▲50k"* ]]
 }
 
 @test "the alarm abbreviates millions" {

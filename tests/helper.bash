@@ -39,6 +39,24 @@ export PROJECT_ROOT
 # Medido: com essa ordem, uma sabotagem que fazia o widget imprimir `·0s` em vez
 # de `·cold` não derrubou teste nenhum. Invertida, derrubou. Contraprova
 # primeiro, asserção sob teste na última linha.
+#
+# ── Cor se testa COLADA ao texto que ela pinta ──
+#
+# Um widget que imprime mais de um número imprime mais de uma cor, e o glob do
+# bash não sabe disso:
+#
+#   [[ "$output" == *$'\033[31m'*"▲50k"* ]]   # errado
+#
+# O `*` entre os dois só exige que o vermelho apareça em ALGUM ponto antes do
+# texto — e o vermelho do percentual serve. Medido no widget cache: com 50k
+# gravados a taxa cai a 1%, o percentual fica vermelho por conta própria, e a
+# asserção passa mesmo com o alarme amarelo. Uma sabotagem que tornava o limiar
+# vermelho inalcançável não derrubou teste nenhum.
+#
+#   [[ "$output" == *$'\033[31m'"▲50k"* ]]    # certo
+#
+# Sem o `*` do meio, a cor tem de ser o escape imediatamente anterior ao texto,
+# que é o que os widgets emitem: `printf '%s%s%s' "$color" "$text" "$SL_RESET"`.
 
 # Remove os escapes de cor, para quando o que está sob teste é a ORDEM dos
 # pedaços e não a cor deles. Um `[[ $out == *"92% ⟳ 20d"* ]]` só é escrevível
