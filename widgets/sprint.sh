@@ -41,10 +41,18 @@ register_widget sprint \
 : "${SL_SPRINT_BIN:=$HOME/.claude/sprint-health-line.sh}"
 SL_SPRINT_DEFAULT_PATH="_bmad-output/implementation-artifacts/sprint-status.yaml"
 
+# O nome da metodologia, à frente dos números. Sem ele `34/38 ▸2 ⊙1` é uma
+# contagem sem dono: a linha já tem outra razão, a do contexto, e um segundo par
+# de números soltos não diz de onde veio.
+#
+# O padrão é BMAD porque o caminho padrão também é — `_bmad-output/...`. Quem
+# troca o helper por outra metodologia troca o rótulo junto, e `""` remove.
+SL_SPRINT_DEFAULT_LABEL="BMAD"
+
 _sprint_compute() {
   # `completed` e não `done`: done é palavra reservada do shell. Funciona como
   # nome de variável, mas tropeça a leitura de quem revisa.
-  local file="$1" raw ratio ready review completed total pct out
+  local file="$1" label="$2" raw ratio ready review completed total pct out
 
   raw="$("$SL_SPRINT_BIN" "$file" 2>/dev/null)" || return 0
   [ -n "$raw" ] || return 0
@@ -84,11 +92,15 @@ _sprint_compute() {
     out="${out} $(sl_color yellow)⊙${review}${SL_RESET}"
   fi
 
+  # O rótulo sai dim, como o `5h:` do rate-forecast: ele nomeia os números sem
+  # disputar com a cor deles, que é semântica.
+  [ -n "$label" ] && out="${SL_DIM}${label}${SL_RESET} ${out}"
+
   printf '%s' "$out"
 }
 
 widget_sprint_render() {
-  local raw gitdir common top rel file key
+  local raw gitdir common top rel file key label
 
   raw="$(sl_git_paths)"
   [ -n "$raw" ] || return 0
@@ -101,6 +113,7 @@ EOF
   # estado de sprint versionado, e é o daquela branch que interessa.
   [ -n "$top" ] || return 0
 
+  label="$(sl_config_widget_opt sprint label "$SL_SPRINT_DEFAULT_LABEL")"
   rel="$(sl_config_widget_opt sprint path "$SL_SPRINT_DEFAULT_PATH")"
   [ -n "$rel" ] || return 0
 
@@ -108,6 +121,10 @@ EOF
   [ -f "$file" ] || return 0
   [ -x "$SL_SPRINT_BIN" ] || return 0
 
-  key="sprint-$(printf '%s' "$file" | cksum | cut -d' ' -f1)"
-  cache_by_mtime "$key" "$file" _sprint_compute "$file"
+  # O rótulo entra na chave porque muda a saída: sem ele, trocar a opção não
+  # teria efeito até o arquivo de sprint ser tocado — e o mtime tem resolução de
+  # um segundo, então nem tocá-lo garantiria. Mesma razão pela qual a chave do
+  # flow carrega as opções dele.
+  key="sprint-$(printf '%s' "$file|$label" | cksum | cut -d' ' -f1)"
+  cache_by_mtime "$key" "$file" _sprint_compute "$file" "$label"
 }

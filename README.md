@@ -491,13 +491,19 @@ A cor é semântica — a opção `color` não se aplica.
 ### `sprint`
 
 Saúde da sprint para projetos que mantêm o estado dela num arquivo:
-`7/10 ▸2 ⊙1` — stories concluídas sobre o total nos épicos ativos, duas na fila
-para desenvolvimento, uma aguardando revisão. A razão é verde a partir de 80%
+`BMAD 7/10 ▸2 ⊙1` — stories concluídas sobre o total nos épicos ativos, duas na
+fila para desenvolvimento, uma aguardando revisão. A razão é verde a partir de 80%
 concluído, amarela a partir de 40%, vermelha abaixo disso.
 
 | Opção | Valores | Padrão |
 |---|---|---|
+| `label` | nome da metodologia, à frente dos números; `""` remove | `BMAD` |
 | `path` | caminho do arquivo, relativo à raiz da árvore de trabalho | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
+
+O rótulo nomeia os números. Sem ele `7/10 ▸2 ⊙1` é uma contagem sem dono: a
+linha já carrega outra razão, a do `context`, e um segundo par de números soltos
+não diz de onde veio. O padrão é `BMAD` porque o caminho padrão também é — quem
+troca o helper por outra metodologia troca o rótulo junto.
 
 Este é o widget de metodologia. Os outros descrevem a máquina; este descreve o
 trabalho. Ele não renderiza nada num projeto que não segue a convenção — sem
