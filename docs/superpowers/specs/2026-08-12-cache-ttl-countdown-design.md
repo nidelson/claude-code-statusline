@@ -137,11 +137,24 @@ Entra uma função nova em `lib/timefmt.sh`, com a mesma regra de duas unidades 
 omissão da menor quando zerada, uma faixa mais fina:
 
 ```
-59m      acima de uma hora não ocorre: o TTL máximo é 3600s
-4m12s
+1h       acima de uma hora não ocorre: o TTL máximo é 3600s
+58m      acima de cinco minutos, só o minuto
+5m
+4m59s    abaixo de cinco minutos, o segundo entra
 4m       segundos zerados somem
 47s
 ```
+
+O corte dos segundos em cinco minutos vem do mesmo argumento que separou esta
+função de `sl_fmt_countdown`, aplicado a ela própria: `59m45s` num repaint de
+cinco segundos pisca permanentemente para dizer o que ninguém lê nessa
+resolução, e movimento constante gasta a atenção que deveria sobrar para quando
+o número fica curto.
+
+Cinco minutos, e não os três do amarelo, porque é o tamanho da menor janela
+contratável: numa conta de cinco minutos a regressiva inteira fica abaixo do
+corte e mostra segundos o tempo todo, que é exatamente o caso em que eles
+servem. Com três, os dois primeiros minutos daquela janela sairiam sem eles.
 
 **A existente não é estendida.** O `<1m` do rate-forecast é escolha deliberada:
 trocá-lo por `47s` faria o reset da janela de cinco horas piscar a cada repaint,

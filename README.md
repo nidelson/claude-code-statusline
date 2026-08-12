@@ -308,6 +308,12 @@ próxima troca paga a gravação inteira de novo, e um token gravado custa vinte
 vezes um token lido. Verde acima de três minutos, amarelo abaixo, vermelho
 abaixo de um minuto e em `cold`.
 
+Os segundos só aparecem abaixo de cinco minutos — `58m`, `5m`, `4m59s`, `47s`.
+Cinco minutos é o tamanho da menor janela contratável, então numa conta de cinco
+minutos a regressiva inteira mostra segundos, que é onde eles servem. Acima
+disso seriam um dígito piscando a cada repaint para dizer o que ninguém lê nessa
+resolução.
+
 Os limites são absolutos, não proporcionais à janela: a pergunta que o countdown
 responde — dá tempo de escrever o próximo prompt antes de o cache esfriar? — tem
 duração humana. Numa conta com janela de uma hora ele quase não sai do verde,

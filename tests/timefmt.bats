@@ -163,3 +163,19 @@ setup() {
   [ "$(sl_fmt_countdown 47)" = "<1m" ]
   [ "$(sl_fmt_ttl 47)" = "47s" ]
 }
+
+@test "ttl format drops seconds above five minutes" {
+  # 350s é 5m50s. Acima do limite, o segundo é ruído que pisca a cada repaint.
+  [ "$(sl_fmt_ttl 350)" = "5m" ]
+}
+
+@test "ttl format keeps seconds right below five minutes" {
+  # Contraprova da faixa: um segundo abaixo do limite, os segundos voltam.
+  [ "$(sl_fmt_ttl 299)" = "4m59s" ]
+  [ "$(sl_fmt_ttl 300)" = "5m" ]
+}
+
+@test "ttl format drops seconds on a long window" {
+  # 3480s é 58m, a leitura típica de uma conta com TTL de uma hora.
+  [ "$(sl_fmt_ttl 3480)" = "58m" ]
+}
