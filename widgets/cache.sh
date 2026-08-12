@@ -95,7 +95,7 @@ _cache_now() {
 # transcript da sessão em curso pode estar pela metade no instante da leitura, e
 # `jq -s` recusaria o arquivo inteiro por causa dela.
 _cache_probe_compute() {
-  tail -n "$SL_CACHE_TAIL_LINES" "$1" 2>/dev/null | jq -Rrs '
+  tail -n "$SL_CACHE_TAIL_LINES" "$1" 2>/dev/null | sl_jq -Rrs '
     [ split("\n")[]
       | fromjson?
       | select(.type == "assistant" and .message.usage != null) ] as $a

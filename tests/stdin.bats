@@ -1,6 +1,7 @@
 load helper
 
 setup() {
+  source "$PROJECT_ROOT/lib/core.sh"
   source "$PROJECT_ROOT/lib/stdin.sh"
 }
 

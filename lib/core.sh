@@ -142,3 +142,33 @@ EOF
 
   printf '%s\n' "$all"
 }
+
+# ── Por que existe um invólucro para o jq ──
+#
+# O jq compilado para Windows abre a saída em modo texto e traduz cada `\n` em
+# `\r\n`. Medido no runner windows-latest, sob Git Bash:
+#
+#   jq -r '.model.display_name' fixture.json | od -c
+#   0000000   O   p   u   s       5  \r  \n
+#
+# O `$(...)` do shell remove a quebra de linha final, mas não o `\r` que sobrou
+# antes dela. O estrago é silencioso e desproporcional: em lib/stdin.sh a saída
+# do jq é uma lista de atribuições que vai para `eval`, então um `\r` no fim de
+# cada linha contamina TODOS os campos da sessão de uma vez — no runner, o
+# widget do modelo sumia inteiro da statusline, e a comparação com "Opus 5"
+# falhava sem que a string parecesse diferente em nenhum log.
+#
+# Nada disso aparece em macOS ou Linux, onde não existe modo texto.
+#
+# O invólucro repassa os argumentos e o stdin sem interpretar, então serve a
+# todas as formas de chamada já usadas — com arquivo, com pipe, com --arg.
+# O status devolvido é o do jq, não o do `tr`. Num pipeline o shell reporta o
+# status do ÚLTIMO comando, e o `tr` tem sucesso mesmo quando o jq recusou a
+# entrada — lib/config.sh usa `jq -e .` justamente para validar JSON, e sem isto
+# ela aceitaria qualquer lixo como configuração válida.
+sl_jq() {
+  local st
+  jq "$@" | tr -d '\r'
+  st=${PIPESTATUS[0]}
+  return "$st"
+}
