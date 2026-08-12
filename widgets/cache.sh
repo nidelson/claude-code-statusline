@@ -57,6 +57,13 @@ SL_CACHE_TAIL_LINES=400
 SL_CACHE_TTL_WARN=180
 SL_CACHE_TTL_CRIT=60
 
+# Limiares do alarme de gravação, em tokens. 10k não é redondo por acaso: a
+# mediana de gravação por troca é 699 e o p90 é 2.942, então o limiar fica três
+# vezes acima do ruído de rotina e ainda captura as 33 trocas, de 943, que
+# carregam 85% de tudo que foi gravado na sessão medida.
+SL_CACHE_WRITE_WARN=10000
+SL_CACHE_WRITE_CRIT=50000
+
 _cache_int() {
   case "$1" in
     ""|*[!0-9]*) printf '0' ;;
@@ -160,9 +167,31 @@ _cache_countdown() {
   printf '%s%s%s' "$color" "$text" "$SL_RESET"
 }
 
+# O pedaço do alarme, já colorido, ou 1 quando não há evento.
+#
+# Abaixo do limiar não sai nada — nem glifo, nem separador. Uma troca de rotina
+# grava setecentos tokens, e anunciar isso todo turno gastaria espaço permanente
+# para dizer "nada aconteceu", que é o estado padrão de quem não vê aviso.
+#
+# O glifo é ▲, U+25B2. O ⚡ que a forma pedia tem Emoji_Presentation=Yes: sai
+# colorido de fábrica e ignora ANSI, e aqui a cor é a informação — amarelo
+# separa caro de muito caro. O ▲ ainda está presente na fonte do terminal, no
+# SF Mono e no Menlo, então não depende do fallback de que o ☁ depende.
+_cache_write_alarm() {
+  local written color mark
+  [ "$(sl_config_widget_opt cache write true)" != "false" ] || return 1
+  written="$(_cache_int "$SL_CACHE_CREATE")"
+  [ "$written" -ge "$SL_CACHE_WRITE_WARN" ] || return 1
+  if [ "$written" -ge "$SL_CACHE_WRITE_CRIT" ]; then color="$(sl_color red)"
+  else                                               color="$(sl_color yellow)"
+  fi
+  if [ "${SL_CONFIG_ICONS:-1}" = "1" ]; then mark="▲"; else mark="w:"; fi
+  printf '%s%s%s%s' "$color" "$mark" "$(sl_fmt_tokens "$written")" "$SL_RESET"
+}
+
 widget_cache_render() {
   local read_tok create_tok fresh_tok total pct color
-  local mark pct_part cd_part out
+  local mark pct_part cd_part wr_part out
 
   read_tok="$(_cache_int "$SL_CACHE_READ")"
   create_tok="$(_cache_int "$SL_CACHE_CREATE")"
@@ -187,8 +216,9 @@ widget_cache_render() {
   fi
 
   cd_part="$(_cache_countdown)" || cd_part=""
+  wr_part="$(_cache_write_alarm)" || wr_part=""
 
-  [ -n "$pct_part" ] || [ -n "$cd_part" ] || return 0
+  [ -n "$pct_part" ] || [ -n "$cd_part" ] || [ -n "$wr_part" ] || return 0
 
   # O glifo é U+2601, o mesmo que docs/legacy/statusline-2.sh:92 usava aqui. O
   # statusline.sh mais antigo usava U+F0C2, área privada da Nerd Font, que este
@@ -214,6 +244,11 @@ widget_cache_render() {
   else
     out="${out}${cd_part}"
   fi
+
+  # Espaço e não `·`: o alarme é um evento, não uma segunda leitura do mesmo
+  # relógio. A pontuação liga a taxa ao countdown porque os dois descrevem o
+  # mesmo cache; o alarme descreve o que acabou de acontecer com ele.
+  [ -n "$wr_part" ] && out="${out} ${wr_part}"
 
   printf '%s' "$out"
 }
