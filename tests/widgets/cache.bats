@@ -127,15 +127,15 @@ use_config() {
 @test "the label option replaces the prefix when icons are off" {
   use_config '{"version":1,"icons":false,"lines":[["cache"]],"widgets":{"cache":{"label":"c:"}}}'
   run widget_cache_render
-  [[ "$output" != *"cache:"* ]]
   [[ "$(sl_test_plain "$output")" == *"c:70%"* ]]
+  [[ "$output" != *"cache:"* ]]
 }
 
 @test "an empty label drops the prefix entirely" {
   use_config '{"version":1,"icons":false,"lines":[["cache"]],"widgets":{"cache":{"label":""}}}'
   run widget_cache_render
-  [[ "$output" != *"cache"* ]]
   [[ "$output" == *"70%"* ]]
+  [[ "$output" != *"cache"* ]]
 }
 
 @test "returns zero when it renders nothing" {
@@ -168,11 +168,15 @@ use_config() {
 @test "the probe takes the ttl from the last turn that wrote" {
   # A última troca foi servida inteira do cache e não gravou nada, então não
   # identifica a janela; quem identifica é a anterior.
+  #
+  # A anterior grava em 1h de propósito: com 5m aqui, o teste passaria também
+  # com o filtro de gravação quebrado, porque uma entrada sem gravação nenhuma
+  # também tem ephemeral_1h zerado e cairia em 300 pelo caminho errado.
   write_transcript \
-    "$(turn 2027-01-15T07:00:00Z 0 500)" \
+    "$(turn 2027-01-15T07:00:00Z 500 0)" \
     "$(turn 2027-01-15T07:58:00Z 0 0)"
   run _cache_probe
-  [ "$output" = "2027-01-15T07:58:00Z 300" ]
+  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
 }
 
 @test "the probe ignores lines that are not assistant turns" {
@@ -193,31 +197,31 @@ use_config() {
 }
 
 @test "the probe gives nothing when no turn ever wrote" {
+  # Contraprova primeiro: a mesma sonda com uma gravação presente responde.
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
   write_transcript "$(turn 2027-01-15T07:58:00Z 0 0)"
   run _cache_probe
   [ "$output" = "" ]
-  # Contraprova: a mesma sonda com uma gravação presente tem de responder.
-  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
-  run _cache_probe
-  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
 }
 
 @test "the probe gives nothing when the transcript is missing" {
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run _cache_probe
+  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
   SL_TRANSCRIPT="$BATS_TEST_TMPDIR/nao-existe.jsonl"
   run _cache_probe
   [ "$output" = "" ]
-  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
-  run _cache_probe
-  [ "$output" = "2027-01-15T07:58:00Z 3600" ]
 }
 
 @test "the probe gives nothing when the transcript path is empty" {
-  SL_TRANSCRIPT=""
-  run _cache_probe
-  [ "$output" = "" ]
   write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
   run _cache_probe
   [ "$output" = "2027-01-15T07:58:00Z 3600" ]
+  SL_TRANSCRIPT=""
+  run _cache_probe
+  [ "$output" = "" ]
 }
 
 @test "the clock comes from SL_NOW when it is set" {
@@ -274,6 +278,20 @@ use_config() {
   [[ "$output" == *$'\033[31m'*"59s"* ]]
 }
 
+@test "a cache expiring this very second is already cold" {
+  # 07:55:00Z + 300s expira 08:00:00Z, que é agora: restam exatamente zero
+  # segundos. O limite é fechado — quem chegou a zero já não serve.
+  # Contraprova primeiro: um segundo antes ainda há tempo, e o texto é outro.
+  # A ordem não é estilo — no bash 3.2 só a última asserção de cada teste é
+  # cobrada, então a que está sob teste tem de ser a última.
+  write_transcript "$(turn 2027-01-15T07:55:01Z 0 500)"
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·1s"* ]]
+  write_transcript "$(turn 2027-01-15T07:55:00Z 0 500)"
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·cold"* ]]
+}
+
 @test "a cold cache is red" {
   write_transcript "$(turn 2027-01-15T07:50:00Z 0 500)"
   run widget_cache_render
@@ -301,13 +319,13 @@ use_config() {
   SL_CACHE_READ=0
   SL_CACHE_CREATE=0
   SL_INPUT_TOKENS=0
-  SL_TRANSCRIPT=""
-  run widget_cache_render
-  [ "$output" = "" ]
-  # Contraprova: com o transcript de volta, o widget tem de reaparecer.
+  # Contraprova primeiro: com transcript, o widget aparece só com o tempo.
   write_transcript "$(turn 2027-01-15T07:58:00Z 0 500)"
   run widget_cache_render
   [ "$(sl_test_plain "$output")" = "☁ 3m" ]
+  SL_TRANSCRIPT=""
+  run widget_cache_render
+  [ "$output" = "" ]
 }
 
 @test "the glyph carries a space" {
@@ -324,14 +342,13 @@ use_config() {
 }
 
 @test "countdown off drops the countdown and keeps the rate" {
-  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"countdown":"off"}}}'
+  # Contraprova primeiro: sem a opção, este transcript traz o tempo.
   write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
   run widget_cache_render
-  [ "$(sl_test_plain "$output")" = "☁ 70%" ]
-  # Contraprova: sem a opção, o mesmo transcript tem de trazer o tempo.
-  SL_CONFIG_RAW=""
-  run widget_cache_render
   [[ "$(sl_test_plain "$output")" == *"·58m"* ]]
+  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"countdown":"off"}}}'
+  run widget_cache_render
+  [ "$(sl_test_plain "$output")" = "☁ 70%" ]
 }
 
 @test "countdown near hides the countdown while there is time" {
