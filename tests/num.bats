@@ -86,3 +86,26 @@ setup() {
   run sl_round ""
   [ "$status" -eq 1 ]
 }
+
+@test "token format leaves small numbers alone" {
+  [ "$(sl_fmt_tokens 950)" = "950" ]
+}
+
+@test "token format abbreviates thousands" {
+  [ "$(sl_fmt_tokens 54000)" = "54k" ]
+}
+
+@test "token format rounds to the nearest thousand" {
+  [ "$(sl_fmt_tokens 53500)" = "54k" ]
+  [ "$(sl_fmt_tokens 53499)" = "53k" ]
+}
+
+@test "token format abbreviates millions with one decimal" {
+  [ "$(sl_fmt_tokens 1000000)" = "1.0M" ]
+  [ "$(sl_fmt_tokens 1250000)" = "1.2M" ]
+}
+
+@test "token format reads junk as zero" {
+  [ "$(sl_fmt_tokens abc)" = "0" ]
+  [ "$(sl_fmt_tokens '')" = "0" ]
+}

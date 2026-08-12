@@ -261,21 +261,24 @@ use_config() {
   # 07:58:01Z + 300s deixa 181s.
   write_transcript "$(turn 2027-01-15T07:58:01Z 0 500)"
   run widget_cache_render
-  [[ "$output" == *$'\033[32m'*"3m1s"* ]]
+    # A cor tem de estar COLADA ao texto. Com *cor*texto* o teste passaria pela
+  # cor do percentual, que ocupa a mesma linha e muda junto — foi assim que uma
+  # sabotagem do limiar do alarme não derrubou nada.
+  [[ "$output" == *$'\033[32m'"3m1s"* ]]
 }
 
 @test "the countdown turns yellow under three minutes" {
   # 07:57:59Z + 300s deixa 179s.
   write_transcript "$(turn 2027-01-15T07:57:59Z 0 500)"
   run widget_cache_render
-  [[ "$output" == *$'\033[33m'*"2m59s"* ]]
+  [[ "$output" == *$'\033[33m'"2m59s"* ]]
 }
 
 @test "the countdown turns red under one minute" {
   # 07:55:59Z + 300s deixa 59s.
   write_transcript "$(turn 2027-01-15T07:55:59Z 0 500)"
   run widget_cache_render
-  [[ "$output" == *$'\033[31m'*"59s"* ]]
+  [[ "$output" == *$'\033[31m'"59s"* ]]
 }
 
 @test "a cache expiring this very second is already cold" {
@@ -295,7 +298,7 @@ use_config() {
 @test "a cold cache is red" {
   write_transcript "$(turn 2027-01-15T07:50:00Z 0 500)"
   run widget_cache_render
-  [[ "$output" == *$'\033[31m'*"cold"* ]]
+  [[ "$output" == *$'\033[31m'"cold"* ]]
 }
 
 @test "the countdown survives without a hit rate" {
@@ -377,4 +380,76 @@ use_config() {
   write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
   run widget_cache_render
   [[ "$(sl_test_plain "$output")" == *"·58m"* ]]
+}
+
+@test "a routine write raises no alarm" {
+  # Contraprova primeiro: uma gravação grande tem de acender.
+  SL_CACHE_CREATE=54000
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"▲54k"* ]]
+  # 699 é a mediana medida em produção. Nada deve aparecer.
+  SL_CACHE_CREATE=699
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" != *"▲"* ]]
+}
+
+@test "the alarm fires from ten thousand" {
+  SL_CACHE_CREATE=9999
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" != *"▲"* ]]
+  SL_CACHE_CREATE=10000
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"▲10k"* ]]
+}
+
+@test "the alarm is yellow between ten and fifty thousand" {
+  SL_CACHE_CREATE=20000
+  run widget_cache_render
+  [[ "$output" == *$'\033[33m'"▲20k"* ]]
+}
+
+@test "the alarm turns red from fifty thousand" {
+  SL_CACHE_CREATE=49999
+  run widget_cache_render
+  [[ "$output" == *$'\033[33m'"▲50k"* ]]
+  SL_CACHE_CREATE=50000
+  run widget_cache_render
+  [[ "$output" == *$'\033[31m'"▲50k"* ]]
+}
+
+@test "the alarm abbreviates millions" {
+  SL_CACHE_CREATE=1250000
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"▲1.2M"* ]]
+}
+
+@test "the alarm sits after the countdown" {
+  SL_CACHE_CREATE=54000
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run widget_cache_render
+  [ "$(sl_test_plain "$output")" = "☁ 1%·58m ▲54k" ]
+}
+
+@test "the alarm shows without a countdown" {
+  SL_CACHE_CREATE=54000
+  SL_TRANSCRIPT=""
+  run widget_cache_render
+  [ "$(sl_test_plain "$output")" = "☁ 1% ▲54k" ]
+}
+
+@test "the write option turns the alarm off" {
+  SL_CACHE_CREATE=54000
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"▲54k"* ]]
+  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"write":false}}}'
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" != *"▲"* ]]
+}
+
+@test "the alarm falls back to a label when icons are off" {
+  SL_CACHE_CREATE=54000
+  use_config '{"version":1,"icons":false,"lines":[["cache"]],"widgets":{"cache":{}}}'
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" != *"▲"* ]]
+  [[ "$(sl_test_plain "$output")" == *"w:54k"* ]]
 }

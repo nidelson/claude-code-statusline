@@ -45,3 +45,23 @@ sl_round() {
   case "$v" in ''|*[!0-9.]*) return 1 ;; esac
   LC_ALL=C printf '%.0f' "$v" 2>/dev/null
 }
+
+# 69000 → "69k", 1000000 → "1.0M", 950 → "950".
+#
+# Ordem de grandeza é o que interessa num contador de token: a diferença entre
+# 53.499 e 53.500 não muda decisão nenhuma, e os dígitos gastos com ela custam
+# largura numa linha que disputa espaço. Diferente da contagem de linhas do
+# velocity, onde "+1.2k" esconderia a distância entre 1200 e 1249.
+sl_fmt_tokens() {
+  local n="$1"
+  case "$n" in
+    ""|*[!0-9]*) printf '0'; return 0 ;;
+  esac
+  if [ "$n" -ge 1000000 ]; then
+    printf '%d.%dM' $(( n / 1000000 )) $(( (n % 1000000) / 100000 ))
+  elif [ "$n" -ge 1000 ]; then
+    printf '%dk' $(( (n + 500) / 1000 ))
+  else
+    printf '%d' "$n"
+  fi
+}

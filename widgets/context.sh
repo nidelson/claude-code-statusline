@@ -36,21 +36,6 @@ SL_CONTEXT_ESC=$'\033'
 SL_CONTEXT_TRACK_BG=$'\033[48;2;38;38;38m'
 SL_CONTEXT_TRACK=$'\033[38;2;60;60;60m░'
 
-# 69000 → "69k", 1000000 → "1.0M", 950 → "950"
-_context_fmt_tokens() {
-  local n="$1"
-  case "$n" in
-    ""|*[!0-9]*) printf '0'; return 0 ;;
-  esac
-  if [ "$n" -ge 1000000 ]; then
-    printf '%d.%dM' $(( n / 1000000 )) $(( (n % 1000000) / 100000 ))
-  elif [ "$n" -ge 1000 ]; then
-    printf '%dk' $(( (n + 500) / 1000 ))
-  else
-    printf '%d' "$n"
-  fi
-}
-
 widget_context_render() {
   local size used pct width tokens
   local eighths full rem i pos r g b cell bar="" color out
@@ -124,7 +109,7 @@ widget_context_render() {
   out="${bar} ${color}${pct}%${SL_RESET}"
 
   if [ "$tokens" != "false" ]; then
-    out="${out} ${SL_DIM}($(_context_fmt_tokens "$used")/$(_context_fmt_tokens "$size"))${SL_RESET}"
+    out="${out} ${SL_DIM}($(sl_fmt_tokens "$used")/$(sl_fmt_tokens "$size"))${SL_RESET}"
   fi
 
   printf '%s' "$out"
