@@ -3,8 +3,11 @@
 #
 #   rate-forecast.sh <label> <used_pct> <resets_at_epoch> <duração_janela_s>
 #
-# stdout: "<nível> <projeção>" — nível ∈ none|ok|warn|crit.
+# stdout: "<nível> <projeção> [<bloqueio_epoch>]" — nível ∈ none|ok|warn|crit.
 #         "none" sai sozinho, sem projeção.
+#         O terceiro campo só aparece quando a projeção passa de 100% e o
+#         estouro cai antes do reset. Um consumidor que só leia dois campos
+#         continua correto — é por isso que ele é o último.
 # exit:   0 sempre. Nenhuma falha pode quebrar a statusline.
 #
 # <label> só nomeia o arquivo de estado ("5h", "7d"). <duração_janela_s> alimenta
@@ -139,14 +142,15 @@ out=$(awk -F'\t' \
     remaining = resets - now
     if (remaining < 0) remaining = 0
 
-    lvlA = -1; projA = -1
+    lvlA = -1; projA = -1; rateA = -1
     elapsed = now - (resets - window)
     if (elapsed >= minelapsed && elapsed <= window) {
-      projA = used + (used / elapsed) * remaining
+      rateA = used / elapsed
+      projA = used + rateA * remaining
       lvlA = level(projA)
     }
 
-    lvlB = -1; projB = -1
+    lvlB = -1; projB = -1; rateB = -1
     if (t0 > 0 && now - t0 >= minspan) {
       rateB = (used - p0) / (now - t0)
       if (rateB < 0) rateB = 0    # pct não decresce numa janela sã
@@ -163,8 +167,38 @@ out=$(awk -F'\t' \
     proj = (projA > projB) ? projA : projB
     if (proj > 999) proj = 999    # teto p/ não estourar a largura da linha
 
+    # ── Quando ──
+    # Projeção acima de 100 diz que a janela estoura antes de resetar. A pergunta
+    # seguinte é a única que muda o que fazer hoje: estoura quando?
+    #
+    # O ritmo usado é o que gerou a projeção reportada. Como as duas projeções
+    # partem do mesmo `used` e do mesmo `remaining`, a maior projeção é
+    # necessariamente a da maior taxa — escolher `max(rate)` é escolher a mesma
+    # estimativa que já está na tela, e não uma segunda opinião que a
+    # contradiria.
+    #
+    # `proj > 100` é limiar físico, não o `crit` configurável: cem por cento é
+    # onde o bloqueio acontece, independentemente de onde o usuário pôs a cor.
+    rate = -1
+    if      (lvlA >= 0 && lvlB >= 0) rate = (rateA > rateB) ? rateA : rateB
+    else if (lvlA >= 0)              rate = rateA
+    else                             rate = rateB
+
+    blocked = ""
+    if (proj > 100 && rate > 0) {
+      secs = (100 - used) / rate
+      if (secs < 0) secs = 0      # já passou dos 100: o bloqueio é agora
+      b = now + secs
+      # A desigualdade é redundante com proj > 100 na álgebra exata, e existe
+      # para o caso em que ela não vale: `proj` foi clampado em 999, ou o `used`
+      # que alimenta a conta veio arredondado de outro lugar. Um bloqueio
+      # previsto DEPOIS do reset não descreve nada.
+      if (b < resets) blocked = sprintf("%d", b)
+    }
+
     name[0] = "ok"; name[1] = "warn"; name[2] = "crit"
-    printf "%s %d\n", name[final], proj + 0.5
+    if (blocked != "") printf "%s %d %s\n", name[final], proj + 0.5, blocked
+    else               printf "%s %d\n",    name[final], proj + 0.5
   }
 ' "$src" 2>/dev/null)
 

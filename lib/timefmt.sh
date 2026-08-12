@@ -121,6 +121,19 @@ sl_fmt_countdown() {
   fi
 }
 
+# `<marca><data>·<regressiva>` a partir de um epoch cru, ou 1 quando ele é
+# ilegível, ausente ou já passou.
+#
+# A marca vem pronta do chamador e a cor fica por conta dele: o mesmo carimbo é
+# contexto calmo quando diz "renova domingo" e alerta quando diz "trava sexta",
+# e quem sabe a diferença é o widget, não esta função.
+sl_stamp_label() {
+  local mark="$1" epoch="$2" now="$3" norm label
+  norm="$(sl_epoch_normalize "$epoch")" || return 1
+  label="$(sl_reset_label "$norm" "$now")" || return 1
+  printf '%s%s' "$mark" "$label"
+}
+
 sl_reset_label() {
   local epoch="$1" now="$2" rem stamp
   case "$epoch$now" in

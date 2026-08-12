@@ -352,3 +352,69 @@ EOF
   [[ "$output" == *"42%"* ]]
   [[ "$output" != *"1h48m"* ]]
 }
+
+# ── Previsão de bloqueio ─────────────────────────────────────────────────────
+#
+# O helper passou a emitir um terceiro campo opcional quando a projeção estoura
+# 100% antes do reset. SL_NOW é 1799990000 e o reset de 5h é 1800000000, então
+# 1799995000 cai no meio: 1h23m para travar, 2h46m para liberar.
+
+@test "a blocked epoch draws the lock" {
+  export FAKE_FORECAST_OUT="crit 118 1799995000"
+  SL_7D_PCT=""
+  run widget_rate_forecast_render
+  [[ "$(sl_test_plain "$output")" == *"1h23m"* ]]
+  [[ "$output" == *"🔒"* ]]
+}
+
+@test "the lock comes before the reset" {
+  # Lidos na ordem, os dois carimbos contam a história: trava agora, libera
+  # depois. Invertidos, contariam ao contrário.
+  export FAKE_FORECAST_OUT="crit 118 1799995000"
+  SL_7D_PCT=""
+  run widget_rate_forecast_render
+  [[ "$(sl_test_plain "$output")" == *"🔒"*"⟳"* ]]
+}
+
+@test "the lock is painted red" {
+  export FAKE_FORECAST_OUT="crit 118 1799995000"
+  SL_7D_PCT=""
+  run widget_rate_forecast_render
+  [[ "$output" == *"$(sl_color red)🔒"* ]]
+}
+
+# Os dois testes abaixo afirmam uma AUSÊNCIA, e ausência passa sozinha quando o
+# recurso inteiro está quebrado. O par no fim de cada um é a contraprova.
+@test "a two-field helper output draws no lock" {
+  # Contrato antigo: um helper que não conheça o terceiro campo continua válido.
+  export FAKE_FORECAST_OUT="crit 116"
+  SL_7D_PCT=""
+  run widget_rate_forecast_render
+  [[ "$output" != *"🔒"* ]]
+  [[ "$output" == *"116%"* ]]
+  export FAKE_FORECAST_OUT="crit 116 1799995000"
+  run widget_rate_forecast_render
+  [[ "$output" == *"🔒"* ]]
+}
+
+@test "a blocked epoch already past drops the lock" {
+  export FAKE_FORECAST_OUT="crit 118 1799980000"
+  SL_7D_PCT=""
+  run widget_rate_forecast_render
+  [[ "$output" != *"🔒"* ]]
+  [[ "$output" == *"118%"* ]]
+  export FAKE_FORECAST_OUT="crit 118 1799995000"
+  run widget_rate_forecast_render
+  [[ "$output" == *"🔒"* ]]
+}
+
+@test "icons off spells the lock out" {
+  # Sem glifo, dois carimbos seguidos seriam duas datas anônimas. A palavra diz
+  # qual é qual, e a que sobra sem rótulo é o reset.
+  export FAKE_FORECAST_OUT="crit 118 1799995000"
+  SL_CONFIG_ICONS=0
+  SL_7D_PCT=""
+  run widget_rate_forecast_render
+  [[ "$output" != *"🔒"* ]]
+  [[ "$output" == *"blocked:"* ]]
+}
