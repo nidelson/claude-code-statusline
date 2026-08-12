@@ -144,12 +144,27 @@ _flow_now() {
 # aqui ele é a regra, não a exceção. Com `icons: false` o glifo some inteiro, e
 # o espaço com ele.
 _flow_renewal_label() {
-  local epoch="$1" mark="" norm label
+  local epoch="$1" mark="" label
   [ "$epoch" != "-" ] || return 1
   [ "${SL_CONFIG_ICONS:-1}" = "1" ] && mark="⟳ "
-  norm="$(sl_epoch_normalize "$epoch")" || return 1
-  label="$(sl_reset_label "$norm" "$(_flow_now)")" || return 1
-  printf '%s' "${SL_DIM}${mark}${label}${SL_RESET}"
+  label="$(sl_stamp_label "$mark" "$epoch" "$(_flow_now)")" || return 1
+  printf '%s' "${SL_DIM}${label}${SL_RESET}"
+}
+
+# `🔒 <data>·<regressiva>` em vermelho, quando o ritmo atual leva a cota a
+# estourar antes de renovar. O fetcher só grava `blocked_epoch` quando a projeção
+# passa de 100%, então a presença do campo já é a condição.
+#
+# O 🔒 sai dourado mesmo dentro do vermelho, porque emoji ignora ANSI. Quem
+# carrega a cor é a data — mesmo arranjo do `⚠`, pelo mesmo motivo. Sem ícones a
+# palavra `blocked:` distingue os dois carimbos, que de outro modo seriam duas
+# datas anônimas lado a lado.
+_flow_blocked_label() {
+  local epoch="$1" mark label
+  [ "$epoch" != "-" ] || return 1
+  if [ "${SL_CONFIG_ICONS:-1}" = "1" ]; then mark="🔒 "; else mark="blocked:"; fi
+  label="$(sl_stamp_label "$mark" "$epoch" "$(_flow_now)")" || return 1
+  printf '%s' "$(sl_color red)${label}${SL_RESET}"
 }
 
 # Uma passada de jq responde às duas perguntas de layout, antes de qualquer
@@ -185,7 +200,7 @@ _flow_layout() {
 # outro lugar.
 _flow_segment() {
   local file="$1" metric="$2" skip_renewal="$3"
-  local label raw used proj renewal out ucolor pcolor rlabel
+  local label raw used proj renewal blocked out ucolor pcolor rlabel blabel
 
   label="$(_flow_label "$metric")"
 
@@ -202,7 +217,7 @@ _flow_segment() {
   raw="$(jq -r --arg m "$metric" '
     if (.ok | not) then empty
     elif (.[$m] | not) then empty
-    else "\(.[$m].percentage // 0) \(.[$m].projected_percentage // "-") \(.[$m].renewal_epoch // "-")"
+    else "\(.[$m].percentage // 0) \(.[$m].projected_percentage // "-") \(.[$m].renewal_epoch // "-") \(.[$m].blocked_epoch // "-")"
     end' "$file" 2>/dev/null)" || return 1
   [ -n "$raw" ] || return 1
 
@@ -215,6 +230,7 @@ _flow_segment() {
   # API nunca afirmou — e um renewal_epoch nulo na data de 1970.
   proj="$2"
   renewal="$3"
+  blocked="$4"
 
   used="$(sl_round "$1")" || return 1
   if [ "$proj" = "-" ]; then
@@ -239,6 +255,15 @@ _flow_segment() {
     pcolor="$(_flow_color "$proj")"
     out="${out}${pcolor}→${proj}%${SL_RESET}"
   fi
+
+  # O bloqueio vem antes da renovação porque é a data que chega primeiro. Lidos
+  # na ordem, os dois carimbos contam a história inteira: "trava sexta, renova
+  # domingo" — e a folga entre eles é o que decide se dá para seguir no ritmo.
+  #
+  # Ele não obedece a `renewal`: são perguntas diferentes. Quem desliga a data de
+  # renovação está dizendo que não precisa saber quando o ciclo vira, não que
+  # aceita ser bloqueado sem aviso.
+  blabel="$(_flow_blocked_label "$blocked")" && out="${out} ${blabel}"
 
   # A renovação vem logo depois do percentual porque é o que dá escala a ele: um
   # `24%` não diz se sobra um dia ou três semanas para gastar o resto, e é essa

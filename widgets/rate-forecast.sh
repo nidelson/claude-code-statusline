@@ -61,8 +61,8 @@ _forecast_window_seconds() {
 # percentual utilizável, para que o chamador saiba não emitir separador.
 _rf_window() {
   local window="$1" pct="$2" reset="$3"
-  local level proj out color raw
-  local int warn crit ucolor repoch rlabel show_reset mark
+  local level proj blocked out color raw
+  local int warn crit ucolor repoch rlabel show_reset mark bmark blabel
 
   [ -n "$pct" ] || return 1
   # A fonte entrega float — a statusline arquivada registra ter recebido
@@ -87,10 +87,12 @@ _rf_window() {
     # set -- divide na primeira palavra sem precisar de array.
     set -- $raw
     case "$1" in
-      ok|warn|crit) level="$1"; proj="$2" ;;
+      # O terceiro campo é opcional e vem vazio de um helper que não o conheça —
+      # é por isso que ele é o último.
+      ok|warn|crit) level="$1"; proj="$2"; blocked="$3" ;;
       # Qualquer outra coisa, inclusive lixo, é tratada como "sem previsão".
       # Um helper com saída inesperada não pode inventar um alerta.
-      *) level="none"; proj="" ;;
+      *) level="none"; proj=""; blocked="" ;;
     esac
   fi
 
@@ -114,6 +116,28 @@ _rf_window() {
   # byte da seta, deixando lixo na saída.
   [ -n "$proj" ] && out="${out}${color}→${proj}%${SL_RESET}"
 
+  # ── Quando trava ──
+  #
+  # `→118%` diz que a janela estoura antes de resetar. A pergunta seguinte é a
+  # única que muda o que fazer hoje: estoura quando? O carimbo vem ANTES do
+  # reset porque é a data que chega primeiro — lidos na ordem, os dois contam a
+  # história inteira: "trava 01:20, libera 02:10".
+  #
+  # Vermelho no bloco todo. O 🔒 sai dourado de qualquer jeito, porque emoji
+  # ignora ANSI, e a data ao lado carrega a cor — mesmo arranjo do `⚠` do flow,
+  # pelo mesmo motivo.
+  if [ -n "$blocked" ]; then
+    if [ "${SL_CONFIG_ICONS:-1}" = "1" ]; then
+      bmark="🔒 "
+    else
+      # Sem glifo, dois carimbos seguidos seriam duas datas anônimas. A palavra
+      # diz qual é qual, e a que sobra sem rótulo é o reset.
+      bmark="blocked:"
+    fi
+    blabel="$(sl_stamp_label "$bmark" "$blocked" "$(_rf_now)")" \
+      && out="${out} $(sl_color red)${blabel}${SL_RESET}"
+  fi
+
   # Um reset ilegível apaga só a si mesmo: percentual e projeção sobrevivem.
   #
   # O espaço depois do `⟳` não é folga: o glifo tem largura ambígua em Unicode e,
@@ -124,9 +148,8 @@ _rf_window() {
   if [ "$show_reset" != "false" ]; then
     mark=""
     [ "${SL_CONFIG_ICONS:-1}" = "1" ] && mark="⟳ "
-    repoch="$(sl_epoch_normalize "$reset")" \
-      && rlabel="$(sl_reset_label "$repoch" "$(_rf_now)")" \
-      && out="${out} ${SL_DIM}${mark}${rlabel}${SL_RESET}"
+    rlabel="$(sl_stamp_label "$mark" "$reset" "$(_rf_now)")" \
+      && out="${out} ${SL_DIM}${rlabel}${SL_RESET}"
   fi
 
   printf '%s' "$out"

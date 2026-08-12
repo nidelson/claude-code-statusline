@@ -379,6 +379,28 @@ A regressiva mostra duas unidades, e omite a menor quando ela é zero: `20d` em
 vez de `20d0h`, `3h` em vez de `3h0m`. Quando ela não é zero, fica — `1d3h` diz
 o que `1d` não diz.
 
+**Quando a projeção estoura, o cadeado diz quando.** `→118%` significa que a
+janela acaba antes de resetar; a pergunta seguinte é a única que muda o que fazer
+hoje:
+
+```
+⏱ 5h:70%→117% 🔒 06:17·1h17m ⟳ 07:00·2h
+```
+
+Trava às 06:17, libera às 07:00. O carimbo do bloqueio vem **antes** do reset
+porque é a data que chega primeiro — lidos na ordem, os dois contam a história
+inteira, e a folga entre eles é o que decide se dá para seguir no ritmo.
+
+O limiar é 100% físico, não o `crit` configurável: cem por cento é onde o
+bloqueio acontece, independentemente de onde você pôs a cor. O ritmo usado é o
+mesmo que gerou a projeção exibida, e não uma segunda estimativa que a
+contradiria.
+
+O 🔒 sai dourado mesmo dentro do vermelho, porque emoji ignora ANSI — quem
+carrega a cor é a data ao lado. Com `icons: false` ele vira `blocked:`, e a
+palavra existe para distinguir os dois carimbos: sem ela seriam duas datas
+anônimas lado a lado, e a que sobra sem rótulo é o reset.
+
 Qualquer pedaço ilegível apaga só a si mesmo. Um reset malformado descarta os
 tempos e mantém o percentual; um helper ausente descarta a projeção e mantém
 todo o resto. `resets_at` é aceito como epoch em segundos, epoch em
@@ -392,9 +414,14 @@ de modo que você pode trocar o modelo de previsão sem tocar no plugin:
 
 ```
 $SL_FORECAST_BIN <label> <used_pct> <resets_at_epoch> <window_seconds>
-→ stdout: "<nível> <projeção>"    nível ∈ none|ok|warn|crit
+→ stdout: "<nível> <projeção> [<bloqueio_epoch>]"   nível ∈ none|ok|warn|crit
 → exit:   0, sempre
 ```
+
+O terceiro campo é opcional e só aparece quando a projeção passa de 100% e o
+estouro cai antes do reset. Ele é o **último** justamente para que um helper de
+antes dele continue válido: quem emite dois campos segue funcionando, e o widget
+apenas não desenha o cadeado.
 
 `none` e `ok` renderizam igual — sem projeção. A diferença entre "não sei
 estimar" e "estimei, está tranquilo" não muda nada para quem lê a statusline, e
@@ -521,6 +548,26 @@ unidade menor quando ela é zero — `20d`, não `20d0h`.
 Uma renovação que não dá para formatar apaga só a si mesma: percentual e projeção
 sobrevivem. Payload sem o campo renderiza como se a opção estivesse desligada.
 
+**Quando a projeção estoura, o cadeado diz quando.** Uma projeção de 92% ainda
+chega à renovação; uma de 130% não chega. Aí a pergunta deixa de ser "vou
+estourar?" e vira "estouro quando?":
+
+```
+💰 24%→130% 🔒 Wed·5d ⟳ 22Jan·7d · 💬 14%
+```
+
+Trava na quarta, renova no dia 22 — e a folga entre os dois é a resposta. O
+carimbo do bloqueio vem antes da renovação porque é a data que chega primeiro.
+Quando as duas cotas travam, cada uma leva o próprio cadeado.
+
+Ele **não** obedece a `renewal: false`: são perguntas diferentes. Quem desliga a
+data de renovação está dizendo que não precisa saber quando o ciclo vira, não que
+aceita ser bloqueado sem aviso.
+
+Quem calcula é `bin/flow-consumption.sh`, que grava `blocked_epoch` no payload
+quando a projeção passa de 100% — o widget não repete o limiar, a presença do
+campo já é a condição. Um bloqueio que já passou desaparece sozinho.
+
 **O terceiro segmento é o status**, e só aparece quando tem o que dizer:
 
 | Marca | Significa |
@@ -542,8 +589,8 @@ anterior nenhuma, o aviso aparece sozinho.
 Todos os glifos respeitam `icons: false`, e nesse modo viram palavras inteiras:
 
 ```
-icons: true    💰 24%→92% ⟳ 31Aug·20d · 💬 14% · ∞
-icons: false   budget:24%→92% 31Aug·20d · requests:14% · unlimited
+icons: true    💰 24%→130% 🔒 Wed·5d ⟳ 31Aug·20d · 💬 14% · ∞
+icons: false   budget:24%→130% blocked:Wed·5d 31Aug·20d · requests:14% · unlimited
 ```
 
 `budget:` e `requests:` são mais longos que uma abreviação seria, de propósito:

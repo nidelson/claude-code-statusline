@@ -22,12 +22,15 @@ setup() {
   INF='∞'
   WARN='⚠'
   RNW='⟳'
+  LOCK='🔒'
   # Relógio fixo e duas renovações à frente dele. Vinte e vinte e cinco dias
   # caem na faixa de dia-e-mês e produzem regressivas sem hora — `20d`, `25d` —
   # o que mantém as asserções curtas.
   NOW=1800000000
   RENEW=1801728000    # +20 dias
   RENEW2=1802160000   # +25 dias
+  BLOCK=1800432000    # +5 dias, entre agora e a renovação
+  BLOCK2=1800518400   # +6 dias
   SL_NOW="$NOW"
 }
 
@@ -57,6 +60,22 @@ EOF
 # estão sendo servidas pela mesma data; duas, que cada uma tem a sua.
 count_renewals() {
   printf '%s' "$1" | grep -o "$RNW" | wc -l | tr -d ' '
+}
+
+count_locks() {
+  printf '%s' "$1" | grep -o "$LOCK" | wc -l | tr -d ' '
+}
+
+# Cache com bloqueio previsto. Argumentos, em ordem: projeção e epoch de bloqueio
+# do budget, os mesmos de requests, e o uso de requests. `null` para ausência.
+write_blocked() {
+  cat > "$JSON" <<EOF
+{"ok":true,"fetched_at":1786240000,
+ "budget":{"percentage":24.3,"projected_percentage":${1:-130.0},
+           "renewal_epoch":$RENEW,"blocked_epoch":${2:-$BLOCK}},
+ "requests":{"percentage":${5:-14.0},"projected_percentage":${3:-null},
+             "renewal_epoch":$RENEW,"blocked_epoch":${4:-null},"unlimited":false}}
+EOF
 }
 
 # O cache guarda a linha pronta e é invalidado pelo mtime do JSON, cuja resolução
@@ -647,6 +666,83 @@ EOF
   [[ "$output" != *"$RNW"* ]]
   # A regressiva sobrevive ao glifo, e serve de contraprova ao `!=` acima.
   [[ "$(sl_test_plain "$output")" == *"·20d"* ]]
+}
+
+# ── Previsão de bloqueio ─────────────────────────────────────────────────────
+#
+# O fetcher só grava `blocked_epoch` quando a projeção passa de 100%, então a
+# presença do campo já é a condição — o widget não repete o limiar.
+
+@test "a blocked epoch draws the lock" {
+  write_blocked
+  quiet_config
+  run widget_flow_render
+  [[ "$(sl_test_plain "$output")" == *"·5d"* ]]
+  [[ "$output" == *"$LOCK"* ]]
+}
+
+@test "the lock comes before the renewal" {
+  # Lidos na ordem, os dois carimbos contam a história inteira: trava quarta,
+  # renova no dia 22. Invertidos, contariam ao contrário.
+  write_blocked
+  quiet_config
+  run widget_flow_render
+  [[ "$(sl_test_plain "$output")" == *"$LOCK"*"$RNW"* ]]
+}
+
+@test "the lock is painted red" {
+  write_blocked
+  quiet_config
+  run widget_flow_render
+  [[ "$output" == *"$(sl_color red)$LOCK"* ]]
+}
+
+@test "both quotas can carry their own lock" {
+  write_blocked 130.0 "$BLOCK" 145.0 "$BLOCK2" 88.0
+  quiet_config
+  run widget_flow_render
+  [[ "$(sl_test_plain "$output")" == *"·6d"* ]]
+  [ "$(count_locks "$output")" = "2" ]
+}
+
+@test "renewal false keeps the lock" {
+  # São perguntas diferentes: quem desliga a data de renovação não está dizendo
+  # que aceita ser bloqueado sem aviso.
+  write_blocked
+  quiet_config_with '"renewal":false'
+  run widget_flow_render
+  [[ "$output" != *"$RNW"* ]]
+  [[ "$output" == *"$LOCK"* ]]
+}
+
+@test "a blocked epoch already in the past drops the lock" {
+  write_blocked 130.0 1799999000
+  quiet_config
+  run widget_flow_render
+  [[ "$output" != *"$LOCK"* ]]
+  drop_render_cache
+  write_blocked
+  run widget_flow_render
+  [[ "$output" == *"$LOCK"* ]]
+}
+
+@test "a payload without blocked_epoch draws no lock" {
+  write_renewal 24.3 92.33
+  quiet_config
+  run widget_flow_render
+  [[ "$output" != *"$LOCK"* ]]
+  drop_render_cache
+  write_blocked
+  run widget_flow_render
+  [[ "$output" == *"$LOCK"* ]]
+}
+
+@test "icons off spells the lock out" {
+  write_blocked
+  no_icons_config
+  run widget_flow_render
+  [[ "$output" != *"$LOCK"* ]]
+  [[ "$output" == *"blocked:"* ]]
 }
 
 @test "the shipped fetcher is executable" {
