@@ -316,3 +316,48 @@ use_config() {
   run widget_cache_render
   [[ "$(sl_test_plain "$output")" == "☁ "* ]]
 }
+
+@test "the countdown shows by default" {
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·58m"* ]]
+}
+
+@test "countdown off drops the countdown and keeps the rate" {
+  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"countdown":"off"}}}'
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run widget_cache_render
+  [ "$(sl_test_plain "$output")" = "☁ 70%" ]
+  # Contraprova: sem a opção, o mesmo transcript tem de trazer o tempo.
+  SL_CONFIG_RAW=""
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·58m"* ]]
+}
+
+@test "countdown near hides the countdown while there is time" {
+  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"countdown":"near"}}}'
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run widget_cache_render
+  [ "$(sl_test_plain "$output")" = "☁ 70%" ]
+}
+
+@test "countdown near shows the countdown under three minutes" {
+  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"countdown":"near"}}}'
+  write_transcript "$(turn 2027-01-15T07:57:59Z 0 500)"
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·2m59s"* ]]
+}
+
+@test "countdown near still shows a cold cache" {
+  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"countdown":"near"}}}'
+  write_transcript "$(turn 2027-01-15T07:50:00Z 0 500)"
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·cold"* ]]
+}
+
+@test "an unknown countdown value behaves as always" {
+  use_config '{"version":1,"lines":[["cache"]],"widgets":{"cache":{"countdown":"talvez"}}}'
+  write_transcript "$(turn 2027-01-15T07:58:00Z 500 0)"
+  run widget_cache_render
+  [[ "$(sl_test_plain "$output")" == *"·58m"* ]]
+}

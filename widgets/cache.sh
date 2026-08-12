@@ -123,7 +123,13 @@ _cache_probe() {
 # ou pague a gravação de novo". Por isso o widget passa a imprimir duas cores —
 # o percentual tem a semântica dele, o tempo tem a sua.
 _cache_countdown() {
-  local raw ts ttl epoch rem text color
+  local raw ts ttl epoch rem text color mode
+
+  # `near` e `off` não podem ser resolvidos no mesmo ponto: `off` dispensa a
+  # leitura do transcript, `near` precisa do tempo restante para decidir.
+  mode="$(sl_config_widget_opt cache countdown always)"
+  [ "$mode" != "off" ] || return 1
+
   raw="$(_cache_probe)" || return 1
   # set -- divide na primeira palavra sem precisar de array.
   set -- $raw
@@ -131,6 +137,14 @@ _cache_countdown() {
   case "$ttl" in ''|*[!0-9]*) return 1 ;; esac
   epoch="$(sl_epoch_normalize "$ts")" || return 1
   rem=$(( epoch + ttl - $(_cache_now) ))
+
+  # `near` reusa o limite do amarelo em vez de inventar um segundo número para
+  # o usuário calibrar: o tempo aparece quando passa a valer a pena olhar.
+  # Expirado sempre aparece — é o único estado em que a próxima troca já tem
+  # preço definido.
+  if [ "$mode" = "near" ] && [ "$rem" -ge "$SL_CACHE_TTL_WARN" ]; then
+    return 1
+  fi
 
   if [ "$rem" -le 0 ]; then
     text="cold"

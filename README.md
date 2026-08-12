@@ -286,28 +286,47 @@ A cor é semântica — a opção `color` não se aplica.
 
 ### `cache`
 
-Taxa de acerto do cache de prompt: `cache:70%`. Verde a partir de 70%, amarelo a
-partir de 30%, vermelho abaixo disso.
+Taxa de acerto do cache de prompt e quanto falta para ele expirar:
+`☁ 70%·4m12s`.
 
 | Opção | Valores | Padrão |
 |---|---|---|
-| `label` | texto do prefixo; `""` remove | `cache:` |
+| `countdown` | `always`, `near`, `off` | `always` |
+| `label` | texto do prefixo com `icons: false`; `""` remove | `cache:` |
 
-A taxa é o total de leituras de cache sobre a soma de leituras, escritas de cache
-e tokens de entrada novos. Alta significa cache quente e troca barata; baixa
-significa cache frio, começo de sessão, ou algo tendo invalidado o prefixo.
+**A taxa** é o total de leituras de cache sobre a soma de leituras, escritas de
+cache e tokens de entrada novos. Verde a partir de 70%, amarelo a partir de 30%,
+vermelho abaixo. É um velocímetro, não um hodômetro: os contadores vêm de
+`current_usage`, que descreve apenas a troca mais recente.
 
-**Isto é um velocímetro, não um hodômetro.** Os contadores vêm de
-`current_usage`, que descreve apenas a troca mais recente, então o número se move
-a cada turno por definição.
+Não aparece quando os três contadores são zero. Uma taxa de acerto sobre zero
+tokens não é 0%, é indefinida — imprimir `0%` afirmaria que o cache errou quando
+nada lhe foi pedido.
 
-Não renderiza nada quando os três contadores são zero. Uma taxa de acerto sobre
-zero tokens não é 0%, é indefinida — imprimir `0%` afirmaria que o cache errou
-quando nada lhe foi pedido.
+**O countdown** diz quando o prefixo em cache expira. Passado esse ponto, a
+próxima troca paga a gravação inteira de novo, e um token gravado custa vinte
+vezes um token lido. Verde acima de três minutos, amarelo abaixo, vermelho
+abaixo de um minuto e em `cold`.
 
-O prefixo é texto e não glifo porque o `context`, o `rate-forecast` e este widget
-podem dividir uma linha e todos terminam em `%`. Texto não exige fonte instalada
-e tem largura previsível. Encurte-o com `label` quando o espaço apertar.
+Os limites são absolutos, não proporcionais à janela: a pergunta que o countdown
+responde — dá tempo de escrever o próximo prompt antes de o cache esfriar? — tem
+duração humana. Numa conta com janela de uma hora ele quase não sai do verde,
+porque ali raramente se perde o cache; numa de cinco minutos acende o tempo
+todo, porque ali se perde mesmo.
+
+A janela não se configura: sai de `ephemeral_1h_input_tokens` e
+`ephemeral_5m_input_tokens` no transcript, então a mesma configuração serve a
+uma máquina com uma hora e a outra com cinco minutos.
+
+`countdown: near` mostra o tempo só a partir do limite amarelo, e sempre quando
+o cache já esfriou. `countdown: off` desliga.
+
+O countdown depende de `transcript_path`, que vem no payload, e do arquivo
+existir e ser legível. Faltando qualquer um, ele some sozinho e a taxa
+permanece — e vice-versa: entre trocas, `current_usage` vem null e o widget
+mostra só o tempo.
+
+Com `icons: false` o glifo dá lugar ao texto de `label`.
 
 A cor é semântica — a opção `color` não se aplica.
 
