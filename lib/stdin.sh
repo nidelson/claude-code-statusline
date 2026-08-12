@@ -14,6 +14,9 @@ sl_parse_stdin() {
     @sh "SL_LINES_ADDED=\(.cost.total_lines_added // 0)",
     @sh "SL_LINES_REMOVED=\(.cost.total_lines_removed // 0)",
     @sh "SL_CWD=\(.workspace.current_dir // .cwd // "")",
+    # O caminho do transcript. É o único jeito de saber quando foi a última
+    # troca: o payload traz os contadores de cache mas nenhum carimbo de tempo.
+    @sh "SL_TRANSCRIPT=\(.transcript_path // "")",
     # Os contadores de cache vivem em .context_window.current_usage, que pode
     # ser null entre trocas. O fallback para a raiz cobre clientes que mandem os
     # campos achatados; o `// 0` final cobre o null.
@@ -50,7 +53,7 @@ sl_parse_stdin() {
     # vazio; a statusline continua imprimindo.
     SL_JQ_OK=0
     SL_MODEL="Unknown"; SL_MODEL_ID=""; SL_COST=0
-    SL_LINES_ADDED=0; SL_LINES_REMOVED=0; SL_CWD=""
+    SL_LINES_ADDED=0; SL_LINES_REMOVED=0; SL_CWD=""; SL_TRANSCRIPT=""
     SL_CACHE_READ=0; SL_CACHE_CREATE=0; SL_INPUT_TOKENS=0
     SL_CTX_SIZE=0; SL_CTX_USED=0
     SL_5H_PCT=""; SL_7D_PCT=""; SL_5H_RESET=""; SL_7D_RESET=""
