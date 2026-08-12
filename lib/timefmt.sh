@@ -121,6 +121,35 @@ sl_fmt_countdown() {
   fi
 }
 
+# A mesma regra de duas unidades, uma faixa abaixo: horas com minutos, minutos
+# com segundos, segundos sozinhos.
+#
+# Existe separada de sl_fmt_countdown, e não como um parâmetro dela, porque as
+# duas discordam de propósito no piso. Lá, `<1m` é escolha: o reset da janela de
+# cinco horas não fica melhor sabendo que faltam 47 segundos, e um número que
+# muda a cada repaint numa posição que ninguém consulta é ruído. Aqui, os
+# últimos sessenta segundos são o único momento em que a informação muda uma
+# decisão — se dá tempo de escrever o próximo prompt antes de o cache esfriar.
+sl_fmt_ttl() {
+  local rem="$1" h m s
+  case "$rem" in
+    ''|*[!0-9]*) printf '0s'; return 0 ;;
+  esac
+  h=$(( rem / 3600 ))
+  m=$(( (rem % 3600) / 60 ))
+  s=$(( rem % 60 ))
+  if [ "$h" -gt 0 ]; then
+    if [ "$m" -gt 0 ]; then printf '%dh%dm' "$h" "$m"
+    else                    printf '%dh' "$h"
+    fi
+  elif [ "$m" -gt 0 ]; then
+    if [ "$s" -gt 0 ]; then printf '%dm%ds' "$m" "$s"
+    else                    printf '%dm' "$m"
+    fi
+  else                      printf '%ds' "$s"
+  fi
+}
+
 # `<marca><data>·<regressiva>` a partir de um epoch cru, ou 1 quando ele é
 # ilegível, ausente ou já passou.
 #
