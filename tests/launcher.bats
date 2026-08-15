@@ -30,19 +30,22 @@ fake_checkout() {
   printf '%s' "$BATS_TEST_TMPDIR/$1"
 }
 
-@test "sem instalação e sem flag, avisa em vez de imprimir nada" {
+@test "warns instead of printing nothing when nothing is installed" {
   run bash "$LAUNCHER" < "$FIXTURE"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"não instalado"* ]]
+  # Casa pelo caminho da flag, que só esta mensagem cita — a outra cita o
+  # destino lido de dentro dela. Escolhido por ser ASCII: um glob sobre o texto
+  # acentuado dependeria do locale do shell, e no Git Bash isso não é dado.
+  [[ "$output" == *"$CLAUDE_CONFIG_DIR/statusline-dev"* ]]
 }
 
-@test "sem flag, executa a versão instalada" {
+@test "runs the installed version when no flag is set" {
   fake_install mkt 0.2.0
   run bash "$LAUNCHER" < "$FIXTURE"
   [ "$output" = "alvo=mkt/0.2.0" ]
 }
 
-@test "entre duas versões, escolhe a maior por ordem de versão e não lexicográfica" {
+@test "picks the highest version, not the lexicographically largest" {
   fake_install mkt 0.9.0
   fake_install mkt 0.10.0
   run bash "$LAUNCHER" < "$FIXTURE"
@@ -50,13 +53,13 @@ fake_checkout() {
   [ "$output" = "alvo=mkt/0.10.0" ]
 }
 
-@test "encontra a instalação sob qualquer marketplace" {
+@test "finds the install under any marketplace" {
   fake_install outro-dono 1.0.0
   run bash "$LAUNCHER" < "$FIXTURE"
   [ "$output" = "alvo=outro-dono/1.0.0" ]
 }
 
-@test "a flag de dev tem precedência sobre a versão instalada" {
+@test "the dev flag wins over the installed version" {
   fake_install mkt 9.9.9
   root=$(fake_checkout meu-checkout)
   printf '%s\n' "$root" > "$CLAUDE_CONFIG_DIR/statusline-dev"
@@ -66,7 +69,7 @@ fake_checkout() {
   [ "$output" = "alvo=checkout-meu-checkout" ]
 }
 
-@test "a flag expande o til, que o shell não expande dentro do arquivo" {
+@test "expands a tilde in the flag, which the shell does not" {
   fake_checkout til > /dev/null
   printf '~/til\n' > "$CLAUDE_CONFIG_DIR/statusline-dev"
   # O checkout falso vive em BATS_TEST_TMPDIR; apontar HOME para lá é o que
@@ -75,7 +78,7 @@ fake_checkout() {
   [ "$output" = "alvo=checkout-til" ]
 }
 
-@test "ignora o que vier depois da primeira linha da flag" {
+@test "ignores everything after the first line of the flag" {
   root=$(fake_checkout comentado)
   printf '%s\n# ligado para testar o widget de sprint\n' "$root" \
     > "$CLAUDE_CONFIG_DIR/statusline-dev"
@@ -83,7 +86,7 @@ fake_checkout() {
   [ "$output" = "alvo=checkout-comentado" ]
 }
 
-@test "flag apontando para lugar nenhum avisa, sem cair para a versão instalada" {
+@test "a flag pointing nowhere warns instead of falling back" {
   fake_install mkt 0.2.0
   printf '/nao/existe\n' > "$CLAUDE_CONFIG_DIR/statusline-dev"
   run bash "$LAUNCHER" < "$FIXTURE"
@@ -93,7 +96,7 @@ fake_checkout() {
   [[ "$output" == *"statusline-dev aponta para /nao/existe"* ]]
 }
 
-@test "flag vazia avisa em vez de executar qualquer coisa" {
+@test "an empty flag warns instead of running anything" {
   fake_install mkt 0.2.0
   : > "$CLAUDE_CONFIG_DIR/statusline-dev"
   [[ "$(bash "$LAUNCHER" < "$FIXTURE")" != *"alvo="* ]]
@@ -101,7 +104,7 @@ fake_checkout() {
   [[ "$output" == *"<vazio>"* ]]
 }
 
-@test "o stdin chega inteiro ao alvo" {
+@test "stdin reaches the target intact" {
   local dir="$CLAUDE_CONFIG_DIR/plugins/cache/mkt/claude-code-statusline/0.2.0/bin"
   mkdir -p "$dir"
   # O alvo real consome o JSON de sessão pelo stdin; se o launcher o tivesse
