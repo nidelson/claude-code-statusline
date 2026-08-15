@@ -146,8 +146,17 @@ Rode o entrypoint contra a fixture do repositório e confirme que imprime algo:
 bash /caminho/absoluto/para/bin/statusline.sh < /caminho/absoluto/para/tests/fixtures/session.json
 ```
 
-Um `⚠` na saída significa que a entrada falhou — JSON da sessão ilegível ou
-config malformada, normalmente `jq` faltando. Relate isso em vez de tratar a
-execução como sucesso.
+A saída tem dois `⚠` possíveis, com causas distintas. A cor separa os dois, e a
+posição confirma:
+
+- **Amarelo, como primeiro caractere da linha** — a entrada falhou: JSON da
+  sessão ilegível ou config malformada, normalmente `jq` faltando. Relate isso
+  em vez de tratar a execução como sucesso.
+- **Vermelho, dentro dos widgets** — a última busca do `flow` falhou. A fixture
+  não traz token nem proxy, então este aparece em toda instalação nova rodando
+  contra ela. É esperado; não relate como erro.
+
+A distinção importa porque `flow` está no default do passo 5: tratar qualquer
+`⚠` como falha faria toda instalação limpa parecer quebrada.
 
 Por fim, peça ao usuário para reiniciar o Claude Code.
