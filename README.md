@@ -3,10 +3,20 @@
 Uma statusline para o [Claude Code](https://claude.com/claude-code), construída a
 partir de widgets pequenos e independentes.
 
-```
-✻ Opus 5 | feat/v0.1 ●3
-5h:42%→70%
-```
+![Statusline de duas linhas num terminal escuro, com repositório, branch, estado
+do git, custo, cache, contexto, as janelas de rate limit e a
+sprint.](docs/statusline.png)
+
+Na primeira linha: o repositório e a branch, três arquivos modificados e um
+commit à frente do upstream, o saldo de linhas da sessão, o cache com 96% de
+acerto e 41 minutos até expirar, o custo e o modelo. Na segunda: a ocupação do
+contexto, e as duas janelas de rate limit — a de 5 horas está em 71% e projeta
+118%, ou seja, estoura antes de resetar; o cadeado diz que a conta trava às
+15:10, daqui a 40 minutos, e o `⟳` que ela só libera às 16:17. No fim, a sprint:
+82 das 154 stories concluídas, 3 prontas para desenvolvimento, 1 em review.
+
+Cada segmento some quando não tem nada a dizer, então a linha costuma ser mais
+curta que esta — árvore limpa, sem sprint, sem worktree.
 
 ## Por que mais uma
 
