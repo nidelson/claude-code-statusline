@@ -595,18 +595,24 @@ estouro e data de renovação, mais um segmento de status para o que não cabe n
 percentual.
 
 ```
-💰 24%→92% ⟳ 31Aug·20d · 💬 14% · ∞
+Flow 💰 24%→92% ⟳ 31Aug·20d · 💬 14% · ∞
 ```
 
 | Opção | Valores | Padrão |
 |---|---|---|
 | `metric` | `budget`, `requests`; omita para mostrar as duas | omitido |
+| `label` | nome do provedor à frente dos números; `""` remove | `Flow` |
 | `separator` | texto entre os segmentos | `·` |
 | `renewal` | `true`, `false` — mostra a data de renovação e a regressiva | `true` |
 | `ttl` | segundos entre buscas | `300` |
 | `refresh` | `true`, `false` — se deve buscar | `true` |
 | `cache` | caminho do JSON buscado | `$XDG_CACHE_HOME/flow-consumption.json` |
 | `bin` | caminho do fetcher | `bin/flow-consumption.sh` neste plugin |
+
+O rótulo nomeia de onde vem a cota: os emoji distinguem budget de requests,
+mas não separam esses números do custo de sessão e do limite de plano que
+dividem a mesma linha. Os exemplos daqui para baixo o omitem, para manter o
+foco no que cada um ilustra.
 
 Este é o widget de provedor corporativo. Passar por um gateway da empresa
 significa uma quota com limite e renovação próprios, invisível ao rate limit da

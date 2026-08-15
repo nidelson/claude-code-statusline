@@ -806,3 +806,47 @@ EOF
   ! grep -qE '(client_secret|password|api_key) *= *["'"'"'][A-Za-z0-9]{8,}' \
     "$PROJECT_ROOT/bin/flow-consumption.sh"
 }
+
+@test "labels the widget by default" {
+  # Os emoji dizem qual cota é qual, não de onde ela vem. Numa linha que mistura
+  # custo de sessão e limite de plano, quem acabou de instalar não tem a
+  # associação pronta.
+  write_cache
+  quiet_config
+  run widget_flow_render
+  [[ "$(sl_test_plain "$output")" == "Flow $BUD"* ]]
+}
+
+@test "an empty label removes it" {
+  write_cache
+  # Contraprova antes: sem ela, a asserção final passaria também se o widget
+  # tivesse parado de renderizar por completo.
+  quiet_config
+  run widget_flow_render
+  [[ "$output" == *"Flow"* ]]
+  # As duas leituras acontecem no mesmo cache e sobre o mesmo JSON, então esta
+  # asserção também cobre a chave: se o rótulo não entrasse nela, a segunda
+  # devolveria a linha da primeira, ainda com "Flow".
+  quiet_config_with '"label":""'
+  run widget_flow_render
+  [[ "$(sl_test_plain "$output")" == "$BUD"* ]]
+}
+
+@test "a custom label replaces the default" {
+  write_cache
+  quiet_config_with '"label":"CI&T"'
+  run widget_flow_render
+  [[ "$(sl_test_plain "$output")" != *"Flow"* ]]
+  [[ "$(sl_test_plain "$output")" == "CI&T $BUD"* ]]
+}
+
+@test "the label stays out when there is nothing to label" {
+  # Sozinho ele anunciaria uma cota que não está na tela.
+  write_cache
+  quiet_config
+  run widget_flow_render
+  [[ "$output" == *"Flow"* ]]
+  rm -f "$JSON"
+  run widget_flow_render
+  [ -z "$output" ]
+}

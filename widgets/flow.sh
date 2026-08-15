@@ -46,6 +46,12 @@ register_widget flow \
 
 SL_FLOW_DEFAULT_TTL=300
 SL_FLOW_DEFAULT_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/flow-consumption.json"
+# Os emoji dizem qual cota é qual, mas não de onde ela vem. Numa linha que já
+# mistura custo de sessão e limite de plano, `💰 24%` é ambíguo até a pessoa
+# aprender a associá-lo ao provedor — e quem instala o plugin hoje não tem essa
+# associação pronta. O rótulo a entrega de graça; `"label": ""` a dispensa
+# quando ela virar redundante.
+SL_FLOW_DEFAULT_LABEL="Flow"
 
 # A mesma escala serve ao uso e à projeção: um só vocabulário para o widget
 # inteiro, e nenhum limiar novo para o usuário aprender.
@@ -327,7 +333,7 @@ _flow_status() {
 }
 
 _flow_compute() {
-  local file="$1" metric="$2" sep="$3" piece line=""
+  local file="$1" metric="$2" sep="$3" label="$4" piece line=""
   local shared="" skip_b="" skip_r="" rb rr ab ar
 
   # Onde a data de renovação mora depende de para quem ela decide alguma coisa.
@@ -391,16 +397,24 @@ _flow_compute() {
     fi
   fi
 
+  # O rótulo sai dim, como o do sprint e o `5h:` do rate-forecast: nomeia os
+  # números sem competir com eles. Só entra se houve linha — sozinho ele
+  # anunciaria uma cota que não está na tela.
+  if [ -n "$label" ] && [ -n "$line" ]; then
+    line="${SL_DIM}${label}${SL_RESET} ${line}"
+  fi
+
   printf '%s' "$line"
 }
 
 widget_flow_render() {
-  local file metric sep ttl bin key renewal
+  local file metric sep ttl bin key renewal label
 
   file="$(sl_config_widget_opt flow cache "$SL_FLOW_DEFAULT_CACHE")"
   metric="$(sl_config_widget_opt flow metric)"
   sep="$(sl_config_widget_opt flow separator "·")"
   renewal="$(sl_config_widget_opt flow renewal true)"
+  label="$(sl_config_widget_opt flow label "$SL_FLOW_DEFAULT_LABEL")"
 
   ttl="$(sl_config_widget_opt flow ttl "$SL_FLOW_DEFAULT_TTL")"
   case "$ttl" in
@@ -427,7 +441,7 @@ widget_flow_render() {
   # uma vez por TTL. Numa cota que renova por mês a menor unidade que aparece na
   # tela é a hora, e cinco minutos de defasagem não a movem.
   key="flow-$(printf '%s' \
-    "$file|$metric|$sep|${SL_CONFIG_ICONS:-1}|$renewal|${SL_NOW:-}" \
+    "$file|$metric|$sep|${SL_CONFIG_ICONS:-1}|$renewal|$label|${SL_NOW:-}" \
     | cksum | cut -d' ' -f1)"
-  cache_by_mtime "$key" "$file" _flow_compute "$file" "$metric" "$sep"
+  cache_by_mtime "$key" "$file" _flow_compute "$file" "$metric" "$sep" "$label"
 }
