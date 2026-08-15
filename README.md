@@ -30,7 +30,8 @@ sobre o trabalho. O segundo é mais difícil de expor e mais fácil de esquecer.
 
 ## Status
 
-v0.1. O contrato de widget está estabelecido e coberto por testes. Quatorze
+O contrato de widget está estabelecido e coberto por testes; a versão
+publicada e o que mudou em cada uma estão no [CHANGELOG.md](CHANGELOG.md). Quatorze
 widgets estão disponíveis hoje — `model`, `repo`, `branch`, `git`, `git-status`,
 `worktree`, `context`, `velocity`, `cache`, `cost`, `rate-forecast`, `sprint`,
 `flow` e `command` — cada um exercitando uma parte diferente do contrato: sem
@@ -41,9 +42,10 @@ O `command` é a válvula de escape: ele roda qualquer programa e renderiza a
 saída, de modo que uma fonte de dados da qual o plugin nunca ouviu falar exige
 configuração em vez de código.
 
-O `flow` é específico da empresa e vem com o próprio fetcher. Este repositório é
-privado e destinado a colegas da CI&T; o widget é inerte em qualquer outro lugar,
-então nada quebra se você nunca o configurar.
+O `flow` é específico da CI&T e vem com o próprio fetcher. Ele é inerte em
+qualquer outro lugar: sem um `ANTHROPIC_AUTH_TOKEN` de gateway Flow o fetcher
+grava `{"ok": false}` e o widget não renderiza. Nada quebra se você nunca o
+configurar.
 
 O `git` é o `branch` e o `git-status` fundidos em um. Use o `git` sozinho, ou os
 outros dois — nunca os três, ou o mesmo `git status` roda duas vezes por repaint.
@@ -133,7 +135,7 @@ Duas notas para quem usa Windows:
   `setup` já escreve assim; editando à mão, não use contrabarras — o Git Bash as
   consome como escape e a statusline falha em silêncio.
 
-No CI o Windows roda um subconjunto de 222 dos 546 testes: as bibliotecas, o
+No CI o Windows roda um subconjunto de 232 dos 560 testes: as bibliotecas, o
 núcleo e o entrypoint, que é onde as diferenças de plataforma aparecem. A suíte
 inteira leva mais de vinte minutos naquele runner, contra um minuto e meio nos
 outros.
@@ -162,7 +164,7 @@ outros.
 | Chave | Tipo | Padrão | Significado |
 |---|---|---|---|
 | `version` | número | — | Versão do formato de configuração. Reservado; ainda não é validado. |
-| `lines` | lista de listas | `[["model","git"],["rate-forecast"]]` | Uma lista interna por linha renderizada, com os widgets da esquerda para a direita. |
+| `lines` | lista de listas | os doze widgets do setup, em duas linhas (veja `SL_CONFIG_DEFAULT_LINES`) | Uma lista interna por linha renderizada, com os widgets da esquerda para a direita. |
 | `separator` | string | `\|` | Colocado entre os widgets de uma linha, cercado de espaços. |
 | `icons` | booleano | `true` | Liga ou desliga os glifos dos widgets. Os glifos são Unicode comum (`✻`, `◆`), não Nerd Font — nenhuma fonte extra necessária. |
 | `widgets` | objeto | `{}` | Opções por widget, indexadas pelo nome do widget. |
