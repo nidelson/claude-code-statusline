@@ -16,7 +16,9 @@ contexto, e as duas janelas de rate limit — a de 5 horas está em 71% e projet
 82 das 154 stories concluídas, 3 prontas para desenvolvimento, 1 em review.
 
 Cada segmento some quando não tem nada a dizer, então a linha costuma ser mais
-curta que esta — árvore limpa, sem sprint, sem worktree.
+curta que esta. A árvore limpa apaga o `●3 ↑1`, e a sprint só aparece em projeto
+que mantém o estado dela em arquivo — a captura é de um repositório de trabalho,
+não deste.
 
 ## Por que mais uma
 
