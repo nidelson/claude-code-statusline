@@ -3,7 +3,6 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "claude-code-statusline",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {
