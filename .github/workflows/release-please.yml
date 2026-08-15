@@ -1,0 +1,34 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+# O repositório tem `default_workflow_permissions: read`, então sem este bloco o
+# GITHUB_TOKEN chega read-only e a action falha ao abrir o PR e ao criar a tag.
+# `contents` cobre tag e release, `pull-requests` cobre o PR de release, e
+# `issues` é exigido pela action para gerenciar os labels que ela usa para
+# reconhecer o próprio PR entre execuções.
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Sem `token:` explícito a action usa o GITHUB_TOKEN. A consequência
+      # documentada é que o PR de release não dispara outros workflows, então o
+      # ci.yml não roda nele. É aceitável aqui: o PR de release só toca
+      # CHANGELOG.md, version.txt e .claude-plugin/plugin.json — nenhum código
+      # shell — e o ci.yml roda no push para main, cobrindo o merge.
+      #
+      # Se um dia a main ganhar branch protection exigindo checks, o PR de
+      # release passa a travar sem check verde. A saída é um PAT em secret
+      # (`token: ${{ secrets.RELEASE_PLEASE_TOKEN }}`), que é o workaround
+      # oficial para eventos do GITHUB_TOKEN não encadearem workflows.
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
