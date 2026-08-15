@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "claude-code-statusline",
+  "name": "nidelson",
   "description": "Marketplace de plugin único para a claude-code-statusline.",
   "owner": {
     "name": "Nidelson Gimenez",
