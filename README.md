@@ -915,6 +915,37 @@ O CI roda a suíte no macOS e no Ubuntu e, além disso, faz um teste de fumaça 
 entrypoint sob o bash 3.2 de sistema do macOS, para pegar sintaxe de bash 4+
 antes que ela chegue a alguém.
 
+## Releases
+
+Versão e `CHANGELOG.md` são gerados pelo [release-please][rp] a partir dos
+commits. Nada é bumpado à mão.
+
+Cada push para `main` atualiza um PR de release aberto, com o changelog e as
+versões já escritas. Mergear esse PR cria a tag e o GitHub Release. O tamanho do
+salto sai do prefixo dos commits: `fix` leva a patch, `feat` a minor, e `!` ou
+`BREAKING CHANGE` a major. Só `feat`, `fix` e `perf` entram no CHANGELOG — o
+resto continua no histórico, mas não é o que interessa a quem usa o plugin.
+
+Há **três** arquivos com o número da versão, e nenhum deles se edita à mão:
+
+| arquivo | papel |
+|---|---|
+| `version.txt` | âncora exigida pelo release-type `simple` |
+| `.release-please-manifest.json` | estado interno do release-please |
+| `.claude-plugin/plugin.json` | o que o Claude Code lê — atualizado via `extra-files` |
+
+O `version.txt` existe só porque o `simple` o exige; num projeto shell não há
+manifest de linguagem que sirva de âncora. Quem propaga o número dele para o
+`plugin.json` é o `jsonpath` em `release-please-config.json`.
+
+O PR de release não tem check de CI verde, e isso é esperado: eventos do
+`GITHUB_TOKEN` não disparam outros workflows. Ele só toca changelog e versões, e
+o `ci.yml` roda no push para `main`, então o merge fica coberto. Se a `main`
+ganhar branch protection exigindo checks, o PR passa a travar — a saída é um PAT,
+e o caminho está comentado em `.github/workflows/release-please.yml`.
+
+[rp]: https://github.com/googleapis/release-please
+
 ## Licença
 
 MIT
