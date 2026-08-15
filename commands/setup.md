@@ -31,17 +31,47 @@ Explique as duas saídas e pare:
    Git Bash. O Claude Code passa a rotear a statusline por ele automaticamente.
 2. Rodar o Claude Code dentro do WSL, onde o plugin funciona sem adaptação.
 
-## Passo 1: Localizar o entrypoint
+## Passo 1: Instalar o launcher
 
-O entrypoint é `${CLAUDE_PLUGIN_ROOT}/bin/statusline.sh`. Confirme que existe e
-resolva para caminho absoluto — o `settings.json` não expande variáveis de
-plugin.
+O `settings.json` **não** aponta para o entrypoint do plugin. Aponta para um
+launcher instalado fora dele, que resolve o entrypoint a cada repaint.
+
+A razão é o caminho de instalação, que carrega a versão:
+
+```
+~/.claude/plugins/cache/<marketplace>/claude-code-statusline/0.2.0/bin/statusline.sh
+```
+
+Como o `settings.json` não expande variáveis de plugin, o caminho ali é literal.
+Gravar esse caminho direto significa que a próxima versão do plugin deixa o
+`settings.json` apontando para um diretório que não existe mais — e a statusline
+some até alguém rodar este setup outra vez. O launcher elimina isso: o
+`settings.json` é escrito uma vez e nunca mais precisa mudar.
+
+Copie `${CLAUDE_PLUGIN_ROOT}/bin/launcher.sh` para
+`${CLAUDE_CONFIG_DIR:-$HOME/.claude}/statusline.sh` e torne-o executável. Esse é
+o caminho que a documentação do Claude Code usa para statusline própria, então é
+o que o usuário espera encontrar ao abrir o `settings.json`.
+
+O destino fica fora do diretório do plugin de propósito: um launcher instalado
+dentro do cache seria apagado pela próxima atualização, que é exatamente o
+problema que ele resolve.
+
+**Se o arquivo já existir, compare antes de escrever:**
+
+- Conteúdo idêntico ao `launcher.sh` do plugin → não faça nada. Rodar o setup
+  várias vezes não pode acumular backups idênticos.
+- Conteúdo diferente → **é a statusline própria do usuário**, e ele
+  provavelmente esqueceu que ela existia. Copie para
+  `statusline.sh.bak.YYYYMMDD-HHMMSS`, diga o nome do backup na mensagem final,
+  e só então sobrescreva. Perder isso em silêncio é o pior desfecho possível:
+  ele veria a statusline mudar sem relacionar a causa.
 
 **No Git Bash, converta o caminho com `cygpath -m`:**
 
 ```bash
-cygpath -m "$CLAUDE_PLUGIN_ROOT/bin/statusline.sh"
-# → C:/Users/nome/.claude/plugins/.../bin/statusline.sh
+cygpath -m "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/statusline.sh"
+# → C:/Users/nome/.claude/statusline.sh
 ```
 
 O caminho que o Git Bash usa internamente (`/c/Users/...`) não serve aqui: quem
@@ -83,7 +113,7 @@ Faça merge no JSON existente, preservando todas as outras chaves:
 {
   "statusLine": {
     "type": "command",
-    "command": "bash /caminho/absoluto/para/bin/statusline.sh",
+    "command": "bash /caminho/absoluto/para/.claude/statusline.sh",
     "padding": 0,
     "refreshInterval": 5
   }
@@ -140,18 +170,24 @@ linha rodariam `git status` duas vezes por repaint.
 
 ## Passo 6: Verificar
 
-Rode o entrypoint contra a fixture do repositório e confirme que imprime algo:
+Rode o **launcher** contra a fixture do repositório, não o entrypoint. É o
+launcher que o `settings.json` invoca, então testá-lo exercita a cadeia inteira:
+a resolução da versão instalada e o entrypoint que ela contém.
 
 ```bash
-bash /caminho/absoluto/para/bin/statusline.sh < /caminho/absoluto/para/tests/fixtures/session.json
+bash "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/statusline.sh" < ${CLAUDE_PLUGIN_ROOT}/tests/fixtures/session.json
 ```
 
-A saída tem dois `⚠` possíveis, com causas distintas. A cor separa os dois, e a
-posição confirma:
+A saída tem três `⚠` possíveis, com causas distintas. A cor separa os dois
+primeiros, e a posição confirma:
 
-- **Amarelo, como primeiro caractere da linha** — a entrada falhou: JSON da
-  sessão ilegível ou config malformada, normalmente `jq` faltando. Relate isso
-  em vez de tratar a execução como sucesso.
+- **Sem cor, linha única começando com `⚠`** — o launcher não achou o que
+  executar. Nenhum widget acompanha, e o texto diz qual dos dois casos é:
+  plugin não instalado, ou flag de desenvolvimento apontando para um checkout
+  inexistente. Esta é uma falha real de instalação; relate.
+- **Amarelo, como primeiro caractere de uma linha com widgets** — a entrada
+  falhou: JSON da sessão ilegível ou config malformada, normalmente `jq`
+  faltando. Relate isso em vez de tratar a execução como sucesso.
 - **Vermelho, dentro dos widgets** — a última busca do `flow` falhou. A fixture
   não traz token nem proxy, então este aparece em toda instalação nova rodando
   contra ela. É esperado; não relate como erro.

@@ -73,13 +73,30 @@ O comando de setup faz backup do `settings.json`, escreve a chave `statusLine` e
 cria uma configuração padrão caso você não tenha uma. Reinicie o Claude Code
 depois.
 
-Para ligar na mão, aponte `statusLine.command` para o `bin/statusline.sh`:
+O setup instala `bin/launcher.sh` como `~/.claude/statusline.sh` e é para lá que
+o `settings.json` aponta — não para dentro do plugin. O motivo é que o caminho de
+instalação carrega a versão:
+
+```
+~/.claude/plugins/cache/nidelson/claude-code-statusline/0.2.0/bin/statusline.sh
+```
+
+Como o `settings.json` não expande variáveis de plugin, gravar esse caminho
+direto faria a statusline sumir a cada atualização, até rodar o setup de novo. O
+launcher resolve a versão instalada a cada repaint, então o `settings.json` é
+escrito uma vez e nunca mais.
+
+Se já existir um `~/.claude/statusline.sh` diferente, o setup guarda uma cópia
+em `statusline.sh.bak.<timestamp>` antes de sobrescrever, e diz o nome do
+backup.
+
+Para ligar na mão:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "bash /caminho/para/claude-code-statusline/bin/statusline.sh",
+    "command": "bash /Users/voce/.claude/statusline.sh",
     "padding": 0,
     "refreshInterval": 5
   }
@@ -914,6 +931,28 @@ bats -r tests
 O CI roda a suíte no macOS e no Ubuntu e, além disso, faz um teste de fumaça do
 entrypoint sob o bash 3.2 de sistema do macOS, para pegar sintaxe de bash 4+
 antes que ela chegue a alguém.
+
+### Rodar o checkout em vez da versão instalada
+
+Escreva a raiz do checkout em `~/.claude/statusline-dev` e o launcher passa a
+executá-la:
+
+```bash
+echo ~/Projects/voce/claude-code-statusline > ~/.claude/statusline-dev
+rm ~/.claude/statusline-dev                                   # volta à instalada
+```
+
+Vale no repaint seguinte, sem reiniciar o Claude Code. Só a primeira linha do
+arquivo é lida, então dá para deixar um lembrete abaixo do caminho.
+
+Se a flag existir mas o caminho não tiver um `bin/statusline.sh`, o launcher
+avisa em vez de cair para a versão instalada. Isso é deliberado: um fallback
+silencioso faria a mudança sob teste simplesmente não aparecer, com a statusline
+seguindo plausível — a forma mais cara de perder tempo.
+
+Manter o `settings.json` apontando direto para o checkout é o que essa flag
+existe para evitar. Rodando código não publicado por semanas, é fácil não notar
+que algo só funciona por causa de um arquivo que existe apenas na sua máquina.
 
 ## Releases
 
