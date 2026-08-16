@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.0](https://github.com/nidelson/claude-code-statusline/compare/v0.2.0...v0.3.0) (2026-08-16)
+
+
+### Features
+
+* launcher resolve a versão instalada e permite rodar o checkout ([#19](https://github.com/nidelson/claude-code-statusline/issues/19)) ([ff4ba3e](https://github.com/nidelson/claude-code-statusline/commit/ff4ba3efc1db6889860b5c6e117af20fa2e8d38f))
+* reordena o default e corrige quatro afirmações do README ([#22](https://github.com/nidelson/claude-code-statusline/issues/22)) ([c679701](https://github.com/nidelson/claude-code-statusline/commit/c679701dbd406d5397291caafe48a4beae95fcbc))
+* rotula o widget flow com o nome do provedor ([#21](https://github.com/nidelson/claude-code-statusline/issues/21)) ([07e49bd](https://github.com/nidelson/claude-code-statusline/commit/07e49bddc0121a3b366046c74526331d02ec9f39))
+
 ## [0.2.0](https://github.com/nidelson/claude-code-statusline/compare/v0.1.0...v0.2.0) (2026-08-15)
 
 
