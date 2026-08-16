@@ -38,7 +38,12 @@ register_widget sprint \
   --self-color \
   --desc   "Sprint completion, queue and review counts"
 
-: "${SL_SPRINT_BIN:=$HOME/.claude/sprint-health-line.sh}"
+# Mesmo caminho que widgets/rate-forecast.sh usa para o helper dele: a raiz
+# resolvida por bin/statusline.sh, com o local de instalação como último recurso
+# para quem carrega o widget fora dela. Até a v0.3.0 isto apontava direto para
+# `$HOME/.claude/`, de quando o helper morava fora do repositório — e o widget
+# ficava mudo em toda máquina que não fosse a de quem o escreveu.
+: "${SL_SPRINT_BIN:=${SL_ROOT:-$HOME/.claude}/bin/sprint-health-line.sh}"
 SL_SPRINT_DEFAULT_PATH="_bmad-output/implementation-artifacts/sprint-status.yaml"
 
 # O nome da metodologia, à frente dos números. Sem ele `34/38 ▸2 ⊙1` é uma

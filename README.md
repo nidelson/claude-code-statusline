@@ -147,7 +147,7 @@ Duas notas para quem usa Windows:
   `setup` já escreve assim; editando à mão, não use contrabarras — o Git Bash as
   consome como escape e a statusline falha em silêncio.
 
-No CI o Windows roda um subconjunto de 232 dos 560 testes: as bibliotecas, o
+No CI o Windows roda um subconjunto de 243 dos 571 testes: as bibliotecas, o
 núcleo e o entrypoint, que é onde as diferenças de plataforma aparecem. A suíte
 inteira leva mais de vinte minutos naquele runner, contra um minuto e meio nos
 outros.
@@ -585,9 +585,15 @@ $SL_SPRINT_BIN <caminho/para/arquivo>
 → exit:   0, sempre
 ```
 
-O `SL_SPRINT_BIN` aponta por padrão para `$HOME/.claude/sprint-health-line.sh`.
-Sem ele o widget fica em silêncio — não há leitura parcial para a qual recorrer,
+O `SL_SPRINT_BIN` aponta por padrão para o `bin/sprint-health-line.sh` que
+acompanha o plugin, um leitor do formato BMAD. Aponte-o para outro executável
+que cumpra o contrato acima e o widget passa a falar da sua metodologia. Sem
+helper algum ele fica em silêncio — não há leitura parcial para a qual recorrer,
 ao contrário do `rate-forecast`.
+
+O leitor que vem junto é `awk`, não `python3`: as dependências de runtime deste
+plugin são `jq` e `git`, e um widget que exige um interpretador a mais ficaria
+mudo justamente no Git Bash do Windows, onde ele raramente está instalado.
 
 Dentro de um worktree linkado ele lê o arquivo daquele worktree, não o da árvore
 principal: cada branch carrega o próprio estado de sprint.
