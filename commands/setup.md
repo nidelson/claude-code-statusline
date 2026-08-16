@@ -156,9 +156,9 @@ Se já existir, não toque nele.
 Este default mostra doze dos quatorze widgets. Ele parece cheio escrito assim,
 mas quase metade não aparece na maioria das sessões: `worktree` some na árvore
 principal, `git-status` some com a árvore limpa, `velocity` some quando nada
-mudou, `cache` some sem tokens de cache, e `sprint` e `flow` somem sem o
-respectivo helper ou token. O que sobra numa máquina recém-instalada são cinco ou
-seis segmentos.
+mudou, `cache` some sem tokens de cache, `sprint` some em projeto que não mantém
+o estado da sprint em arquivo, e `flow` some sem o token do gateway. O que sobra
+numa máquina recém-instalada são cinco ou seis segmentos.
 
 Widget que não tem nada a dizer desaparece, então incluir muitos no default custa
 pouco e resolve a descoberta: ninguém precisa ler o README inteiro para saber que
