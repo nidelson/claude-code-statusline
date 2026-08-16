@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/nidelson/claude-code-statusline/compare/v0.3.0...v0.4.0) (2026-08-16)
+
+
+### Features
+
+* o widget sprint passa a vir com o próprio leitor ([#23](https://github.com/nidelson/claude-code-statusline/issues/23)) ([af84400](https://github.com/nidelson/claude-code-statusline/commit/af84400d36287b69d9ab80c741c18aa356183c63))
+
 ## [0.3.0](https://github.com/nidelson/claude-code-statusline/compare/v0.2.0...v0.3.0) (2026-08-16)
 
 
