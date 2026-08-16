@@ -13,7 +13,7 @@
 # As opções por widget não cabem aqui: este fallback é uma lista de linhas, não
 # um JSON. Quem chega por este caminho recebe os widgets nos padrões deles, o
 # que é a degradação certa — sem arquivo, não há preferência a respeitar.
-SL_CONFIG_DEFAULT_LINES='repo branch git-status worktree velocity cache model cost flow
+SL_CONFIG_DEFAULT_LINES='repo branch git-status worktree velocity cache cost flow model
 context rate-forecast sprint'
 SL_CONFIG_DEFAULT_SEP='|'
 # Ícones ligados por padrão. Os glifos usados são Unicode padrão (✻, ◆), não

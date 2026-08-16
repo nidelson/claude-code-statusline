@@ -3,10 +3,22 @@
 Uma statusline para o [Claude Code](https://claude.com/claude-code), construída a
 partir de widgets pequenos e independentes.
 
-```
-✻ Opus 5 | feat/v0.1 ●3
-5h:42%→70%
-```
+![Statusline de duas linhas num terminal escuro, com repositório, branch, estado
+do git, custo, cache, contexto, as janelas de rate limit e a
+sprint.](docs/statusline.png)
+
+Na primeira linha: o repositório e a branch, três arquivos modificados e um
+commit à frente do upstream, o saldo de linhas da sessão, o cache com 96% de
+acerto e 41 minutos até expirar, o custo e o modelo. Na segunda: a ocupação do
+contexto, e as duas janelas de rate limit — a de 5 horas está em 71% e projeta
+118%, ou seja, estoura antes de resetar; o cadeado diz que a conta trava às
+15:10, daqui a 40 minutos, e o `⟳` que ela só libera às 16:17. No fim, a sprint:
+82 das 154 stories concluídas, 3 prontas para desenvolvimento, 1 em review.
+
+Cada segmento some quando não tem nada a dizer, então a linha costuma ser mais
+curta que esta. A árvore limpa apaga o `●3 ↑1`, e a sprint só aparece em projeto
+que mantém o estado dela em arquivo — a captura é de um repositório de trabalho,
+não deste.
 
 ## Por que mais uma
 
@@ -30,7 +42,8 @@ sobre o trabalho. O segundo é mais difícil de expor e mais fácil de esquecer.
 
 ## Status
 
-v0.1. O contrato de widget está estabelecido e coberto por testes. Quatorze
+O contrato de widget está estabelecido e coberto por testes; a versão
+publicada e o que mudou em cada uma estão no [CHANGELOG.md](CHANGELOG.md). Quatorze
 widgets estão disponíveis hoje — `model`, `repo`, `branch`, `git`, `git-status`,
 `worktree`, `context`, `velocity`, `cache`, `cost`, `rate-forecast`, `sprint`,
 `flow` e `command` — cada um exercitando uma parte diferente do contrato: sem
@@ -41,9 +54,10 @@ O `command` é a válvula de escape: ele roda qualquer programa e renderiza a
 saída, de modo que uma fonte de dados da qual o plugin nunca ouviu falar exige
 configuração em vez de código.
 
-O `flow` é específico da empresa e vem com o próprio fetcher. Este repositório é
-privado e destinado a colegas da CI&T; o widget é inerte em qualquer outro lugar,
-então nada quebra se você nunca o configurar.
+O `flow` é específico da CI&T e vem com o próprio fetcher. Ele é inerte em
+qualquer outro lugar: sem um `ANTHROPIC_AUTH_TOKEN` de gateway Flow o fetcher
+grava `{"ok": false}` e o widget não renderiza. Nada quebra se você nunca o
+configurar.
 
 O `git` é o `branch` e o `git-status` fundidos em um. Use o `git` sozinho, ou os
 outros dois — nunca os três, ou o mesmo `git status` roda duas vezes por repaint.
@@ -133,7 +147,7 @@ Duas notas para quem usa Windows:
   `setup` já escreve assim; editando à mão, não use contrabarras — o Git Bash as
   consome como escape e a statusline falha em silêncio.
 
-No CI o Windows roda um subconjunto de 222 dos 546 testes: as bibliotecas, o
+No CI o Windows roda um subconjunto de 232 dos 560 testes: as bibliotecas, o
 núcleo e o entrypoint, que é onde as diferenças de plataforma aparecem. A suíte
 inteira leva mais de vinte minutos naquele runner, contra um minuto e meio nos
 outros.
@@ -162,7 +176,7 @@ outros.
 | Chave | Tipo | Padrão | Significado |
 |---|---|---|---|
 | `version` | número | — | Versão do formato de configuração. Reservado; ainda não é validado. |
-| `lines` | lista de listas | `[["model","git"],["rate-forecast"]]` | Uma lista interna por linha renderizada, com os widgets da esquerda para a direita. |
+| `lines` | lista de listas | os doze widgets do setup, em duas linhas (veja `SL_CONFIG_DEFAULT_LINES`) | Uma lista interna por linha renderizada, com os widgets da esquerda para a direita. |
 | `separator` | string | `\|` | Colocado entre os widgets de uma linha, cercado de espaços. |
 | `icons` | booleano | `true` | Liga ou desliga os glifos dos widgets. Os glifos são Unicode comum (`✻`, `◆`), não Nerd Font — nenhuma fonte extra necessária. |
 | `widgets` | objeto | `{}` | Opções por widget, indexadas pelo nome do widget. |
