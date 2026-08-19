@@ -39,6 +39,43 @@ MIN_SAMPLE_GAP_S=600
 MIN_CYCLE_AGE_S="${FLOW_MIN_CYCLE_AGE_S:-86400}"
 
 mkdir -p "$CACHE_DIR" 2>/dev/null
+
+# mtime de um caminho, em epoch. `stat` não tem sintaxe comum entre as
+# plataformas — mesmo problema e mesma solução de lib/cache.sh:_sl_mtime,
+# reimplementado aqui porque este script é self-contained e não dá source em
+# libs. `find -newermt` foi descartado: aceita "@epoch" no GNU find, mas o
+# BSD find do macOS recusa esse formato ("Can't parse date/time"), e é
+# exatamente a plataforma onde este script roda.
+_lock_mtime() {
+  local out
+  out="$(stat -f %m "$1" 2>/dev/null)"
+  case "$out" in
+    ''|*[!0-9]*) out="$(stat -c %Y "$1" 2>/dev/null)" ;;
+  esac
+  case "$out" in
+    ''|*[!0-9]*) printf '0' ;;
+    *)           printf '%s' "$out" ;;
+  esac
+}
+
+# Descarte de lock órfão, antes de tentar o lock de verdade logo abaixo.
+#
+# Um lock nunca solto trava toda atualização futura para sempre: se o processo
+# em background morrer antes do `trap EXIT` rodar — pai encerrado, kill -9 —
+# `mkdir` abaixo falha a cada TTL, sem erro nenhum, e o widget congela no
+# último dado bom. STALE_LOCK_S é a defesa: um lock mais velho do que o pior
+# caminho legítimo (até três chamadas de rede em série, TIMEOUT_S cada, mais
+# folga) não pode ser de uma consulta ainda em voo, e é seguro descartar.
+# mtime ilegível (`0`) não decide nada: degrada para "lock não é stale",
+# igual a lib/cache.sh faz com carimbo não numérico.
+STALE_LOCK_S=60
+if [ -d "$LOCK_DIR" ]; then
+  lock_mtime="$(_lock_mtime "$LOCK_DIR")"
+  if [ "$lock_mtime" != "0" ] && [ $(( $(date +%s) - lock_mtime )) -ge "$STALE_LOCK_S" ]; then
+    rmdir "$LOCK_DIR" 2>/dev/null
+  fi
+fi
+
 # Lock via mkdir (atômico): se já tem uma consulta em voo, essa instância desiste.
 mkdir "$LOCK_DIR" 2>/dev/null || exit 0
 trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
