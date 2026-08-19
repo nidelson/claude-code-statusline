@@ -749,8 +749,8 @@ EOF
   [ -x "$PROJECT_ROOT/bin/flow-consumption.sh" ]
 }
 
-# Os três testes abaixo rodam o fetcher de verdade, sem rede: sem token ele
-# aborta na verificação de credencial, muito antes de qualquer chamada HTTP.
+# Os testes abaixo rodam o fetcher de verdade, sem rede: sem token ele aborta
+# na verificação de credencial, muito antes de qualquer chamada HTTP.
 # XDG_CACHE_HOME temporário mantém o cache real do usuário fora disso.
 # O `|| :` é esperado, não tolerância: sem token o fetcher sai com status
 # diferente de zero depois de gravar o arquivo, e é o arquivo que está sob
@@ -795,6 +795,32 @@ EOF
 
 @test "a failed fetch with no prior reading falls back to the error payload" {
   run_fetcher_without_token
+  saved="$BATS_TEST_TMPDIR/xdg/flow-consumption.json"
+  [ "$(jq -r '.ok' "$saved")" = "false" ]
+  [ "$(jq -r '.message' "$saved")" != "null" ]
+}
+
+@test "a fresh lock stops the fetch (another run is in flight)" {
+  mkdir -p "$BATS_TEST_TMPDIR/xdg"
+  mkdir "$BATS_TEST_TMPDIR/xdg/flow-consumption.lock"
+  run env -u ANTHROPIC_AUTH_TOKEN XDG_CACHE_HOME="$BATS_TEST_TMPDIR/xdg" \
+    bash "$PROJECT_ROOT/bin/flow-consumption.sh"
+  [ "$status" -eq 0 ]
+  # Desistiu antes até de checar o token: nada foi escrito.
+  [ ! -f "$BATS_TEST_TMPDIR/xdg/flow-consumption.json" ]
+}
+
+@test "a stale lock is cleared and the fetch proceeds" {
+  # Simula o processo anterior morto antes do trap EXIT: lock antigo, ninguém
+  # pra soltá-lo. Timestamp absoluto no passado, como os demais testes do
+  # projeto já fazem — evita a sintaxe de "N minutos atrás", que diverge entre
+  # BSD e GNU date.
+  mkdir -p "$BATS_TEST_TMPDIR/xdg"
+  mkdir "$BATS_TEST_TMPDIR/xdg/flow-consumption.lock"
+  touch -t 202001010000 "$BATS_TEST_TMPDIR/xdg/flow-consumption.lock"
+  run_fetcher_without_token
+  # Passou da checagem de lock: sem token, mas gravou o erro no cache — prova
+  # que a busca de fato tentou rodar.
   saved="$BATS_TEST_TMPDIR/xdg/flow-consumption.json"
   [ "$(jq -r '.ok' "$saved")" = "false" ]
   [ "$(jq -r '.message' "$saved")" != "null" ]
