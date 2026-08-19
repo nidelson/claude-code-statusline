@@ -203,3 +203,99 @@ _tip_should_show() {
   [ "$pid" = "$ppid" ] || return 1
   return 0
 }
+
+# ── As fontes ──
+#
+# O tip lê as mesmas fontes que os outros widgets leem, na hora de renderizar.
+#
+# O caminho óbvio seria `flow` e `rate-forecast` publicarem o que já
+# calcularam numa global. Não funciona: o núcleo captura widget com
+# `out="$("$fn")"`, que é command substitution — subshell — e global atribuída
+# lá dentro morre no retorno. É o isolamento que
+# docs/superpowers/decisions/2026-08-08-canal-de-retorno.md celebra, valendo
+# contra nós. Medido antes de desistir dele.
+
+# O bin do forecast, com o mesmo default de widgets/rate-forecast.sh. Duplicado
+# de propósito: esta lib precisa funcionar carregada antes do widget, e
+# `: "${VAR:=...}"` não sobrescreve quem já definiu.
+: "${SL_FORECAST_BIN:=${SL_ROOT:-$HOME/.claude}/bin/rate-forecast.sh}"
+
+SL_TIP_FLOW_DEFAULT_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/flow-consumption.json"
+
+# A dica só fala do que está na tela.
+#
+# Quem tirou o `rate-forecast` da barra não vê `→116%`, e uma dica que explica o
+# que a pessoa está vendo não teria o que explicar. É também o que impede o tip
+# de chamar o bin do forecast por conta própria e passar a amostrar sozinho.
+#
+# SL_CONFIG_LINES é separada por quebras de linha; o `tr` a achata para que um
+# `case` com espaços consiga casar palavra inteira — sem isso, `flow` casaria
+# dentro de `rate-forecast-flow` ou de um `command:flow`.
+_tip_widget_configured() {
+  local name="$1" hay
+  hay=" $(printf '%s' "$SL_CONFIG_LINES" | tr '\n' ' ') "
+  case "$hay" in
+    *" $name "*) return 0 ;;
+  esac
+  return 1
+}
+
+# Flow: o JSON do fetcher já traz projeção e data de bloqueio prontas.
+#
+# Das duas cotas, responde a que trava PRIMEIRO — é a que decide o que fazer
+# hoje. `blocked_epoch` ausente é o sinal de "não há bloqueio projetado": o
+# fetcher só o grava quando a projeção passa de 100%.
+#
+# Saída: "proj used blocked reset", com proj e used já arredondados por
+# sl_round — a mesma regra de arredondamento que todos os percentuais desta
+# statusline usam.
+_tip_flow_source() {
+  local file raw
+  _tip_widget_configured flow || return 1
+  file="$(sl_config_widget_opt flow cache "$SL_TIP_FLOW_DEFAULT_CACHE")"
+  [ -r "$file" ] || return 1
+  raw="$(sl_jq -r '
+    if (.ok | not) then empty
+    else
+      [ .budget, .requests ]
+      | map(select(. != null
+                   and .blocked_epoch != null
+                   and .projected_percentage != null))
+      | sort_by(.blocked_epoch)
+      | if length == 0 then empty
+        else .[0]
+             | "\(.projected_percentage) \(.percentage) \(.blocked_epoch) \(.renewal_epoch // 0)"
+        end
+    end' "$file" 2>/dev/null)" || return 1
+  [ -n "$raw" ] || return 1
+  set -- $raw
+  printf '%s %s %s %s' "$(sl_round "$1")" "$(sl_round "$2")" "$3" "$4"
+}
+
+# 5h e 7d: a projeção vem do mesmo helper que o widget usa, com os mesmos
+# argumentos — inclusive o `pct` sem arredondar, porque o helper deriva uma taxa
+# da diferença entre leituras e o arredondamento viraria um degrau de 1 ponto
+# percentual extrapolado sobre a janela inteira.
+#
+# Chamar o helper uma segunda vez no mesmo repaint não grava amostra espúria:
+# ele só registra quando `now − last_ts ≥ 60`, e o widget rate-forecast já
+# amostrou no mesmo segundo. Verificado em bin/rate-forecast.sh.
+_tip_rf_source() {
+  local window="$1" pct reset secs raw
+  _tip_widget_configured rate-forecast || return 1
+  case "$window" in
+    5h) pct="$SL_5H_PCT"; reset="$SL_5H_RESET"; secs=18000  ;;
+    7d) pct="$SL_7D_PCT"; reset="$SL_7D_RESET"; secs=604800 ;;
+    *)  return 1 ;;
+  esac
+  [ -n "$pct" ] || return 1
+  [ -n "$reset" ] || return 1
+  [ -x "$SL_FORECAST_BIN" ] || return 1
+  raw="$("$SL_FORECAST_BIN" "$window" "$pct" "$reset" "$secs" 2>/dev/null)" || return 1
+  set -- $raw
+  case "$1" in ok|warn|crit) ;; *) return 1 ;; esac
+  # O terceiro campo só existe quando a projeção passa de 100% e o estouro cai
+  # antes do reset. Sem ele não há bloqueio a anunciar.
+  [ -n "$3" ] || return 1
+  printf '%s %s %s %s' "$2" "$(sl_round "$pct")" "$3" "$reset"
+}

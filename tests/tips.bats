@@ -2,7 +2,17 @@ load helper
 
 setup() {
   export SL_CACHE_DIR="$BATS_TEST_TMPDIR/cache"
+  source "$PROJECT_ROOT/lib/colors.sh"
+  source "$PROJECT_ROOT/lib/core.sh"
+  source "$PROJECT_ROOT/lib/num.sh"
+  source "$PROJECT_ROOT/lib/timefmt.sh"
+  source "$PROJECT_ROOT/lib/cache.sh"
+  source "$PROJECT_ROOT/lib/config.sh"
   source "$PROJECT_ROOT/lib/tips.sh"
+  SL_CONFIG_RAW=""
+  SL_CONFIG_LINES="repo branch
+context rate-forecast flow
+tip"
 }
 
 # ── corte de ritmo ──
@@ -155,5 +165,96 @@ mk_transcript() {   # mk_transcript <promptId>
   _tip_should_show flow 116 1755900000 1755000000
   mk_transcript "turno-B"
   run _tip_should_show flow 116 1755880000 1755000000
+  [ "$status" -ne 0 ]
+}
+
+# ── fontes ──
+
+write_flow() {   # write_flow <pct> <proj> <blocked|null>
+  FLOW_JSON="$BATS_TEST_TMPDIR/flow.json"
+  cat > "$FLOW_JSON" <<EOF
+{"ok":true,
+ "budget":{"percentage":$1,"projected_percentage":$2,"blocked_epoch":$3,"renewal_epoch":1756100000},
+ "requests":{"percentage":5,"projected_percentage":null,"renewal_epoch":1756100000}}
+EOF
+  SL_CONFIG_RAW="{\"widgets\":{\"flow\":{\"cache\":\"$FLOW_JSON\"}}}"
+}
+
+fake_forecast() {   # fake_forecast <linha que o helper imprime>
+  cat > "$BATS_TEST_TMPDIR/fake-forecast.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "$1"
+EOF
+  chmod +x "$BATS_TEST_TMPDIR/fake-forecast.sh"
+  SL_FORECAST_BIN="$BATS_TEST_TMPDIR/fake-forecast.sh"
+}
+
+@test "flow source reports projection, usage and block date" {
+  write_flow 25 116.4 1755900000
+  run _tip_flow_source
+  [ "$output" = "116 25 1755900000 1756100000" ]
+}
+
+@test "flow source stays silent without a block date" {
+  write_flow 25 116.4 1755900000
+  run _tip_flow_source
+  [ "$output" = "116 25 1755900000 1756100000" ]
+  write_flow 25 48.0 null
+  run _tip_flow_source
+  [ "$status" -ne 0 ]
+}
+
+@test "flow source stays silent when the widget is not on the bar" {
+  write_flow 25 116.4 1755900000
+  run _tip_flow_source
+  [ "$output" = "116 25 1755900000 1756100000" ]
+  SL_CONFIG_LINES="repo branch
+context rate-forecast
+tip"
+  run _tip_flow_source
+  [ "$status" -ne 0 ]
+}
+
+@test "flow source answers with the quota that locks first" {
+  FLOW_JSON="$BATS_TEST_TMPDIR/flow.json"
+  cat > "$FLOW_JSON" <<'EOF'
+{"ok":true,
+ "budget":{"percentage":25,"projected_percentage":116,"blocked_epoch":1755900000,"renewal_epoch":1756100000},
+ "requests":{"percentage":40,"projected_percentage":210,"blocked_epoch":1755800000,"renewal_epoch":1756100000}}
+EOF
+  SL_CONFIG_RAW="{\"widgets\":{\"flow\":{\"cache\":\"$FLOW_JSON\"}}}"
+  run _tip_flow_source
+  [ "$output" = "210 40 1755800000 1756100000" ]
+}
+
+@test "rate forecast source reports what the helper projects" {
+  fake_forecast "crit 134 1755870000"
+  SL_7D_PCT=23.4
+  SL_7D_RESET=1756000000
+  run _tip_rf_source 7d
+  [ "$output" = "134 23 1755870000 1756000000" ]
+}
+
+@test "rate forecast source stays silent when the helper reports no block" {
+  fake_forecast "crit 134 1755870000"
+  SL_7D_PCT=23.4
+  SL_7D_RESET=1756000000
+  run _tip_rf_source 7d
+  [ "$output" = "134 23 1755870000 1756000000" ]
+  fake_forecast "warn 92"
+  run _tip_rf_source 7d
+  [ "$status" -ne 0 ]
+}
+
+@test "rate forecast source stays silent when the widget is not on the bar" {
+  fake_forecast "crit 134 1755870000"
+  SL_7D_PCT=23.4
+  SL_7D_RESET=1756000000
+  run _tip_rf_source 7d
+  [ "$output" = "134 23 1755870000 1756000000" ]
+  SL_CONFIG_LINES="repo branch
+context flow
+tip"
+  run _tip_rf_source 7d
   [ "$status" -ne 0 ]
 }
