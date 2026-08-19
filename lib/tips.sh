@@ -89,21 +89,21 @@ _tip_prompt_id() {
   printf '%s' "${id%\"}"
 }
 
-# Os três campos de uma fonte, separados por espaço.
+# A chave e o turno de uma fonte, separados por espaço.
 #
 # O arquivo é TSV, mas a saída não: nenhum dos valores contém espaço, e um
 # retorno separado por espaço deixa o chamador usar `set --` em vez de fatiar
 # string com TAB literal — que em bash 3.2 é fonte de erro silencioso.
 _tip_state_get() {
-  local src="$1" file f step blocked pid
+  local src="$1" file f key pid
   file="$(_tip_state_file)"
   [ -r "$file" ] || return 1
   # `|| [ -n "$f" ]` cobre arquivo sem quebra final: read devolve não-zero ao
   # encontrar EOF mesmo tendo preenchido as variáveis.
-  while IFS="$(printf '\t')" read -r f step blocked pid || [ -n "$f" ]; do
+  while IFS="$(printf '\t')" read -r f key pid || [ -n "$f" ]; do
     [ "$f" = "$src" ] || continue
     [ -n "$pid" ] || continue
-    printf '%s %s %s' "$step" "$blocked" "$pid"
+    printf '%s %s' "$key" "$pid"
     return 0
   done < "$file"
   return 1
@@ -114,7 +114,7 @@ _tip_state_get() {
 # Escreve em temporário e move: dois terminais repintando ao mesmo tempo
 # poderiam ler o arquivo no meio de uma reescrita in-place.
 _tip_state_put() {
-  local src="$1" step="$2" blocked="$3" pid="$4" file tmp line f
+  local src="$1" key="$2" pid="$3" file tmp line f
   file="$(_tip_state_file)"
   tmp="$file.$$"
   mkdir -p "$SL_CACHE_DIR" 2>/dev/null || return 0
@@ -126,7 +126,7 @@ _tip_state_put() {
       printf '%s\n' "$line"
     done < "$file" >> "$tmp"
   fi
-  printf '%s\t%s\t%s\t%s\n' "$src" "$step" "$blocked" "$pid" >> "$tmp"
+  printf '%s\t%s\t%s\n' "$src" "$key" "$pid" >> "$tmp"
   mv -f "$tmp" "$file" 2>/dev/null || rm -f "$tmp" 2>/dev/null
 }
 
@@ -148,60 +148,6 @@ _tip_state_drop() {
   else
     rm -f "$tmp" "$file" 2>/dev/null
   fi
-}
-
-# Decide se esta fonte fala agora, e registra o que foi dito.
-#
-# Três motivos para falar: é a primeira vez; a projeção subiu de degrau; a data
-# de bloqueio antecipou mais de 10% do que faltava. Fora isso a dica continua na
-# tela enquanto for o mesmo turno, e cala no próximo — que é o que a faz esperar
-# por quem saiu para almoçar, em vez de morrer no relógio.
-#
-# A regra dos 10% é relativa de propósito: antecipar duas horas numa trava que
-# estava a três dias não muda decisão nenhuma; as mesmas duas horas numa que
-# estava a seis mudam tudo.
-#
-# Transcript ilegível vira o turno `-`, que é estável entre repaints: a dica
-# fica na tela em vez de piscar. Falhar mostrando é melhor que falhar calado,
-# porque o `🔒` da linha de cima continua verdadeiro de qualquer jeito.
-_tip_should_show() {
-  local src="$1" proj="$2" blocked="$3" now="$4"
-  local step prev pstep pblocked ppid pid margin
-
-  step="$(_tip_step "$proj")" || return 1
-  pid="$(_tip_prompt_id)" || pid="-"
-
-  if ! prev="$(_tip_state_get "$src")"; then
-    _tip_state_put "$src" "$step" "$blocked" "$pid"
-    return 0
-  fi
-
-  set -- $prev
-  pstep="$1"; pblocked="$2"; ppid="$3"
-  case "$pstep"    in ''|*[!0-9]*) pstep=0 ;;    esac
-  case "$pblocked" in ''|*[!0-9]*) pblocked=0 ;; esac
-
-  if [ "$step" -gt "$pstep" ]; then
-    _tip_state_put "$src" "$step" "$blocked" "$pid"
-    return 0
-  fi
-
-  case "$blocked" in
-    ''|*[!0-9]*) ;;
-    *)
-      if [ "$pblocked" -gt 0 ] && [ "$blocked" -lt "$pblocked" ]; then
-        margin=$(( (pblocked - now) / 10 ))
-        [ "$margin" -ge 0 ] || margin=0
-        if [ $(( pblocked - blocked )) -gt "$margin" ]; then
-          _tip_state_put "$src" "$step" "$blocked" "$pid"
-          return 0
-        fi
-      fi
-      ;;
-  esac
-
-  [ "$pid" = "$ppid" ] || return 1
-  return 0
 }
 
 # ── As fontes ──
@@ -300,77 +246,329 @@ _tip_rf_source() {
   printf '%s %s %s %s' "$2" "$(sl_round "$pct")" "$3" "$reset"
 }
 
-# ── As frases ──
 
-# Piso da pausa do 5h. Travar quatro minutos antes de a janela virar não vale
-# uma linha na barra: a janela renova em horas, e o custo de estourar ali é uma
+# ── O contrato de fonte ──
+#
+# Cada fonte devolve "<chave><TAB><frase pronta>", e recebe a chave que ela mesma
+# devolveu da última vez.
+#
+# A chave é opaca para o widget: ele só compara com a gravada. Quem sabe o que
+# conta como mudança material é a fonte, e isso não é preferência de estilo. O
+# flow considera "piorou" um degrau a mais OU uma antecipação acima de 10% do que
+# faltava; comparada por igualdade simples, uma data de bloqueio que andou um
+# segundo produziria chave nova e a dica voltaria a cada repaint.
+#
+# Foi essa inversão que abriu espaço para as dicas de cache: "o prefixo esfriou"
+# não tem projeção nem data de trava, e no contrato anterior — proj/used/blocked/
+# reset — teria de vir com quatro campos vazios que não significam nada.
+SL_TIP_SOURCES="flow 7d 5h cache-cold cache-expiring"
+
+# Piso da pausa do 5h. Travar quatro minutos antes de a janela virar não vale uma
+# linha na barra: a janela renova em horas, e o custo de estourar ali é uma
 # pausa, não um bloqueio.
 SL_TIP_5H_MIN_PAUSE=900
 
-# A frase de uma fonte, em uma linha de no máximo 80 colunas.
+# Tempo é entrada, não relógio — mesma razão de widgets/rate-forecast.sh: sem
+# isso a suíte passaria a depender do dia em que roda.
+_tip_now() {
+  if [ -n "$SL_NOW" ]; then printf '%s' "$SL_NOW"; else date +%s; fi
+}
+
+# Hífen não é legal em nome de função. Mesma conversão que _sl_slug faz em
+# lib/core.sh, pelo mesmo motivo.
+_tip_slug() {
+  local n="$1"
+  printf '%s' "${n//-/_}"
+}
+
+# O rótulo da linha de dica.
 #
-# ── Nenhuma data aparece aqui ──
+# `⎿` é o glifo com que o Claude Code marca as próprias notas, e a linha de dica
+# é exatamente isso: uma nota sobre a barra, não mais um dado dela. Emprestá-lo
+# dá à linha o vocabulário visual que o usuário já reconhece, sem inventar marca
+# nova.
 #
-# É decisão, não esquecimento. `🔒 Fri·2d8h` e `⟳` já estão na linha de cima,
-# cada um com seu formato decidido. Repetir a data custava trinta colunas para
-# não acrescentar nada — e foi o que estourou os 80 caracteres no primeiro
-# rascunho. Sobra o que a barra NÃO consegue dizer: que o número é projeção e
-# não consumo, e quanto o ritmo precisa cair.
+# E ele paga o próprio espaço: se o glifo já diz "isto é uma nota", a palavra
+# "Dica" vira redundante, e as frases encolhem seis colunas em vez de crescer
+# duas. Mesma lição que cortou as datas das frases de projeção e o "esfriou" das
+# de cache — a dica só carrega o que mais nada está dizendo.
 #
-# ── "No ritmo atual" nunca vira "nas últimas 3h" ──
+# Sem ícones a palavra volta, porque aí não há glifo para sinalizar nada. É o
+# mesmo arranjo de _flow_label em widgets/flow.sh.
 #
-# O flow-consumption.json entrega `projected_percentage` pronto sem dizer sobre
-# que período, e o bin/rate-forecast.sh reporta o MAIOR entre duas projeções —
-# a da média da janela e a do ritmo recente — de modo que nem o LOOKBACK
-# descreve o que gerou o número. Nomear uma janela que a fonte não afirma é
-# inventar precisão, numa frase cujo trabalho é ensinar a ler um número.
+# U+23BF é BMP e tem East Asian Width neutro — ao contrário do ⟳ e do 🔒, não
+# disputa célula com o texto seguinte, então dispensa o espaço defensivo que
+# aqueles exigem.
+_tip_label() {
+  if [ "${SL_CONFIG_ICONS:-1}" = "1" ]; then
+    printf '⎿ %s' "$1"
+  else
+    printf '%s' "$2"
+  fi
+}
+
+# A chave das fontes de projeção: "<degrau>:<blocked>".
 #
-# ── O 5h fala outra coisa ──
+# Devolve a chave ANTERIOR quando nada material mudou — é assim que a regra dos
+# 10% sobrevive a uma comparação por igualdade. A margem é relativa de propósito:
+# antecipar duas horas numa trava que estava a três dias não muda decisão
+# nenhuma; as mesmas duas horas numa que estava a seis mudam tudo.
+_tip_flow_key() {
+  local prev="$1" step="$2" blocked="$3" now="$4" pstep pblocked margin
+  [ -n "$prev" ] || { printf '%s:%s' "$step" "$blocked"; return 0; }
+
+  pstep="${prev%%:*}"
+  pblocked="${prev##*:}"
+  case "$pstep"    in ''|*[!0-9]*) pstep=0 ;;    esac
+  case "$pblocked" in ''|*[!0-9]*) pblocked=0 ;; esac
+
+  if [ "$step" -gt "$pstep" ]; then
+    printf '%s:%s' "$step" "$blocked"; return 0
+  fi
+
+  if [ "$pblocked" -gt 0 ] && [ "$blocked" -lt "$pblocked" ]; then
+    margin=$(( (pblocked - now) / 10 ))
+    [ "$margin" -ge 0 ] || margin=0
+    if [ $(( pblocked - blocked )) -gt "$margin" ]; then
+      printf '%s:%s' "$step" "$blocked"; return 0
+    fi
+  fi
+
+  printf '%s' "$prev"
+}
+
+# As três fontes de projeção, servidas por um corpo só.
 #
-# Ele troca "não gasto" pela duração da pausa, porque é isso que muda a decisão
-# ali: a janela renova em horas, então o custo não é um bloqueio, é ficar
-# parado.
-_tip_phrase() {
-  local src="$1" proj="$2" used="$3" blocked="$4" reset="$5"
-  local cut label pause gap
+# As frases são as mesmas de antes do refactor, palavra por palavra: os testes
+# que as afirmam não foram editados, e é isso que prova que a generalização não
+# mudou comportamento.
+_tip_src_projection() {
+  local src="$1" prev="$2" raw proj used blocked reset now key cut label step gap pause
 
   case "$src" in
-    flow|5h|7d) ;;
-    *) return 1 ;;
+    flow) raw="$(_tip_flow_source)"      || return 1 ;;
+    *)    raw="$(_tip_rf_source "$src")" || return 1 ;;
   esac
 
-  cut="$(_tip_cut "$proj" "$used")" || cut=""
+  set -- $raw
+  proj="$1"; used="$2"; blocked="$3"; reset="$4"
 
+  now="$(_tip_now)"
+
+  # Data de bloqueio no passado não é dica: sl_stamp_label recusa formatá-la, o
+  # widget da fonte esconde o cadeado, e a barra não mostra bloqueio nenhum.
+  case "$blocked" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$blocked" -gt "$now" ] || return 1
+
+  step="$(_tip_step "$proj")" || return 1
+  cut="$(_tip_cut "$proj" "$used")" || cut=""
+  key="$(_tip_flow_key "$prev" "$step" "$blocked" "$now")"
+
+  # O 5h troca "não gasto" pela duração da pausa, porque é isso que muda a
+  # decisão ali: a janela renova em horas, então o custo não é um bloqueio, é
+  # ficar parado.
   if [ "$src" = "5h" ]; then
     case "$reset" in ''|*[!0-9]*) return 1 ;; esac
-    case "$blocked" in ''|*[!0-9]*) return 1 ;; esac
     gap=$(( reset - blocked ))
     [ "$gap" -ge "$SL_TIP_5H_MIN_PAUSE" ] || return 1
     pause="$(sl_fmt_countdown "$gap")"
     if [ -n "$cut" ]; then
-      printf 'Dica da janela 5h: →%s%% é projeção — cortar %s%% evita %s parado' \
-        "$proj" "$cut" "$pause"
+      printf '%s\t%s →%s%% é projeção — cortar %s%% evita %s parado' \
+        "$key" "$(_tip_label "Janela 5h:" "Dica da janela 5h:")" "$proj" "$cut" "$pause"
     else
-      printf 'Dica da janela 5h: →%s%% é projeção — %s parado se o ritmo seguir' \
-        "$proj" "$pause"
+      printf '%s\t%s →%s%% é projeção — %s parado se o ritmo seguir' \
+        "$key" "$(_tip_label "Janela 5h:" "Dica da janela 5h:")" "$proj" "$pause"
     fi
     return 0
   fi
 
-  if [ "$src" = "flow" ]; then label="Dica do Flow"; else label="Dica da janela 7d"; fi
+  if [ "$src" = "flow" ]; then
+    label="$(_tip_label "Flow:" "Dica do Flow:")"
+  else
+    label="$(_tip_label "Janela 7d:" "Dica da janela 7d:")"
+  fi
 
   # A cauda difere entre as duas só no tamanho: "evita a trava" cabe na frase do
   # Flow, cujo rótulo é cinco colunas mais curto, e estouraria a do 7d.
   if [ -n "$cut" ]; then
     if [ "$src" = "flow" ]; then
-      printf '%s: →%s%% é projeção, não gasto — cortar %s%% do ritmo evita a trava' \
-        "$label" "$proj" "$cut"
+      printf '%s\t%s →%s%% é projeção, não gasto — cortar %s%% do ritmo evita a trava' \
+        "$key" "$label" "$proj" "$cut"
     else
-      printf '%s: →%s%% é projeção, não gasto — cortar %s%% do ritmo evita' \
-        "$label" "$proj" "$cut"
+      printf '%s\t%s →%s%% é projeção, não gasto — cortar %s%% do ritmo evita' \
+        "$key" "$label" "$proj" "$cut"
     fi
   else
-    printf '%s: →%s%% é projeção, não gasto — a cota trava antes de renovar' \
-      "$label" "$proj"
+    printf '%s\t%s →%s%% é projeção, não gasto — a cota trava antes de renovar' \
+      "$key" "$label" "$proj"
   fi
+}
+
+_tip_src_flow() { _tip_src_projection flow "$1"; }
+_tip_src_7d()   { _tip_src_projection 7d   "$1"; }
+_tip_src_5h()   { _tip_src_projection 5h   "$1"; }
+
+# ── Quanto custa regravar o prefixo ──
+#
+# O plugin não conhece tabela de preços, e não deve conhecer: ela envelheceria a
+# cada lançamento, e mentiria para quem passa por um gateway corporativo com
+# preço próprio. O preço sai do custo que o Claude Code já reporta.
+#
+# O caminho ingênuo — custo total sobre tokens totais — foi medido e recusado.
+# Numa sessão real de 435 trocas ele dá $0,90 por milhão contra $5,00 de
+# verdade: erro de 5,5×. A causa é estrutural, não amostral: 106M de tokens
+# lidos do cache a 0,1× dominam a CONTAGEM e quase não pesam no CUSTO, e a média
+# desaba. A dica subestimaria a regravação em cinco vezes — pior que não existir,
+# porque erra para menos justamente no número que deveria assustar.
+#
+# O que funciona é uma invariante: output custa 5× input em toda a linha Claude
+# — Fable 10/50, Opus 5/25, Sonnet 3/15, Haiku 1/5. Com ela sobra uma incógnita:
+#
+#   custo = P_in × (input + 0,1·read + W·write + 5·output)
+#
+# Medido contra os mesmos agregados: erro de 0% com W=1,25 e 11% com W=2.
+# Aceitável para um número que aparece com `~` na frente.
+
+_tip_usage_totals_compute() {
+  # `-Rrs` linha a linha com `fromjson?`, e não `-s`: a última linha do
+  # transcript da sessão em curso pode estar pela metade no instante da leitura,
+  # e `jq -s` recusaria o arquivo inteiro por causa dela. Mesmo motivo de
+  # _cache_probe_compute.
+  sl_jq -Rrs '
+    [ split("\n")[] | fromjson?
+      | select(.type == "assistant" and .message.usage != null)
+      | .message.usage ] as $u
+    | if ($u | length) == 0 then empty
+      else "\([$u[].input_tokens // 0] | add) \([$u[].cache_read_input_tokens // 0] | add) \([$u[].cache_creation_input_tokens // 0] | add) \([$u[].output_tokens // 0] | add)"
+      end' "$1" 2>/dev/null
+}
+
+# Os quatro agregados do transcript, cacheados por mtime: a varredura é do
+# arquivo inteiro, e o resultado só muda quando ele cresce.
+_tip_usage_totals() {
+  local key out
+  [ -n "$SL_TRANSCRIPT" ] || return 1
+  [ -f "$SL_TRANSCRIPT" ] || return 1
+  key="tip-usage-$(printf '%s' "$SL_TRANSCRIPT" | cksum | cut -d' ' -f1)"
+  out="$(cache_by_mtime "$key" "$SL_TRANSCRIPT" _tip_usage_totals_compute "$SL_TRANSCRIPT")"
+  [ -n "$out" ] || return 1
+  printf '%s' "$out"
+}
+
+# Quantas trocas a regravação precisa para se pagar.
+#
+#   com cache:  W + 0,1·(N−1)        sem cache:  1·N
+#
+# → 3 com TTL de uma hora, 2 com cinco minutos. Não é constante escolhida a
+# dedo: sai do W que widgets/cache.sh detecta do payload, e muda sozinha quando
+# a conta muda.
+_tip_breakeven() {
+  awk -v w="$1" 'BEGIN{
+    n = (w - 0.1) / 0.9
+    v = int(n); if (n > v) v = v + 1
+    if (v < 2) v = 2
+    printf "%d", v
+  }'
+}
+
+# Custo de regravar <tokens> tokens, em centavos. Retorna 1 quando não dá para
+# derivar — e aí a frase omite a cifra e mantém o múltiplo e as trocas, que
+# continuam verdadeiros.
+#
+# A conta vive inteira no awk: bash 3.2 só faz aritmética inteira, e aqui todo
+# fator é fracionário.
+_tip_regrave_cost() {
+  local tokens="$1" w="$2" totals
+  totals="$(_tip_usage_totals)" || return 1
+  set -- $totals
+  awk -v cost="$SL_COST" -v inp="$1" -v rd="$2" -v wr="$3" -v out="$4" \
+      -v w="$w" -v tok="$tokens" 'BEGIN{
+    den = inp + 0.1*rd + w*wr + 5*out
+    if (cost <= 0 || den <= 0 || tok <= 0) exit 1
+    printf "%.0f", tok * w * (cost/den) * 100
+  }'
+}
+
+# ── As dicas de cache ──
+
+# Piso de contexto. Esfriar com 12k na sessão custa centavos, e uma dica que
+# aparece nesse caso ensina a ignorar a que aparece com 393k. Uma casa acima do
+# limiar de gravação do cache.sh (10k), porque lá o que está em jogo é uma troca
+# e aqui é o contexto inteiro.
+SL_TIP_CTX_FLOOR=100000
+
+# Janela em que vale avisar que o cache está por esfriar. É o mesmo
+# SL_CACHE_TTL_CRIT do widget, e de propósito: o tempo já aparece em vermelho
+# lá, e a dica explica aquele vermelho. Dois números diferentes seriam duas
+# verdades sobre o mesmo instante.
+SL_TIP_CACHE_SOON=60
+
+# "<segundos restantes> <W>" do cache, ou 1.
+#
+# Depende de _cache_probe, que vive em widgets/cache.sh. O acoplamento é
+# deliberado e guardado: sem o widget na configuração a dica não fala, pela mesma
+# razão que vale para o flow — explicar um número que não está na tela não
+# explica nada. E quando ele está na configuração, o arquivo foi carregado antes
+# de qualquer render.
+_tip_cache_state() {
+  local raw ts ttl epoch rem
+  _tip_widget_configured cache || return 1
+  command -v _cache_probe >/dev/null 2>&1 || return 1
+  raw="$(_cache_probe)" || return 1
+  set -- $raw
+  ts="$1"; ttl="$2"
+  case "$ttl" in ''|*[!0-9]*) return 1 ;; esac
+  epoch="$(sl_epoch_normalize "$ts")" || return 1
+  rem=$(( epoch + ttl - $(_tip_now) ))
+  # O multiplicador de gravação sai da janela contratada, que o cache.sh detecta
+  # do payload: 2× para uma hora, 1,25× para cinco minutos. O mesmo usuário
+  # alterna entre as duas contas, então isto não pode ser configuração.
+  if [ "$ttl" -ge 3600 ]; then printf '%s 2' "$rem"; else printf '%s 1.25' "$rem"; fi
+}
+
+# Contexto grande o bastante para a regravação doer.
+_tip_ctx_big() {
+  case "$SL_CTX_USED" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$SL_CTX_USED" -ge "$SL_TIP_CTX_FLOOR" ]
+}
+
+# O prefixo expirou: a próxima troca regrava o contexto inteiro.
+#
+# A frase não diz "esfriou" — o `☁ 100%·cold` da linha de cima já diz, com
+# formato e cor próprios. Repetir custava dez colunas e estourava os 80, que é a
+# mesma lição que as datas ensinaram nas dicas de projeção.
+_tip_src_cache_cold() {
+  local st rem w cents money
+  _tip_ctx_big || return 1
+  st="$(_tip_cache_state)" || return 1
+  set -- $st
+  rem="$1"; w="$2"
+  [ "$rem" -le 0 ] || return 1
+
+  money=""
+  if cents="$(_tip_regrave_cost "$SL_CTX_USED" "$w")"; then
+    money="$(awk -v c="$cents" 'BEGIN{ printf " (~$%.2f)", c/100 }')"
+  fi
+
+  printf 'cold\t%s regravar %s custa %s×%s — vale a partir de %s trocas' \
+    "$(_tip_label "Cache:" "Dica do cache:")" \
+    "$(sl_fmt_tokens "$SL_CTX_USED")" "$w" "$money" "$(_tip_breakeven "$w")"
+}
+
+# O prefixo está por expirar, e ainda dá para aproveitá-lo.
+#
+# A chave é `warn` durante a janela inteira, e não o número de segundos: uma
+# chave que mudasse a cada repaint faria a dica renascer sessenta vezes num
+# minuto. O texto mostra o tempo correndo; o estado é um só.
+_tip_src_cache_expiring() {
+  local st rem w
+  _tip_ctx_big || return 1
+  st="$(_tip_cache_state)" || return 1
+  set -- $st
+  rem="$1"; w="$2"
+  [ "$rem" -gt 0 ] || return 1
+  [ "$rem" -le "$SL_TIP_CACHE_SOON" ] || return 1
+
+  printf 'warn\t%s %ss até esfriar — mandar algo agora aproveita %s gravados' \
+    "$(_tip_label "Cache:" "Dica do cache:")" "$rem" "$(sl_fmt_tokens "$SL_CTX_USED")"
 }

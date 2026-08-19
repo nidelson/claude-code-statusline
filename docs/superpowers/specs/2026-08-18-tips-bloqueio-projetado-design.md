@@ -38,7 +38,7 @@ Uma linha nova, abaixo das que já existem, com rótulo da fonte:
 ```
  sip │ fix/backend-type-errors │ ●2 │ +453 −10 │ ▲ 99%·45m │ $32.80 │ ✱ Opus 5 (1M context)
  ▓▓▓░ 33% (330k/1.0M) │ 🕐 5h:12% ⟳23:20·1h7m · 7d:23% ⟳Fri·2d8h │ BMAD 56/85 ▸5
- Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava
+ ⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava
 ```
 
 O rótulo por fonte resolve dois problemas de uma vez. Diz **de quem** é a dica,
@@ -247,9 +247,9 @@ apagado. Ausência é o estado normal.
 Uma linha, com rótulo da fonte, em 80 colunas ou menos:
 
 ```
-Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava   (77)
-Dica da janela 7d: →134% é projeção, não gasto — cortar 25% do ritmo evita      (74)
-Dica da janela 5h: →118% é projeção — cortar 12% evita 50 min parado            (68)
+⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava   (77)
+⎿ Janela 7d: →134% é projeção, não gasto — cortar 25% do ritmo evita      (74)
+⎿ Janela 5h: →118% é projeção — cortar 12% evita 50 min parado            (68)
 ```
 
 **A dica não repete data nenhuma.** O primeiro rascunho dizia "trava sex 22/08,
