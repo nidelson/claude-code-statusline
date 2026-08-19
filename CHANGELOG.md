@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/nidelson/claude-code-statusline/compare/v0.4.0...v0.5.0) (2026-08-19)
+
+
+### Features
+
+* a dica que explica o bloqueio projetado ([#25](https://github.com/nidelson/claude-code-statusline/issues/25)) ([f390cc4](https://github.com/nidelson/claude-code-statusline/commit/f390cc42fc940571fbd3ebf077d0f780de0aa1b8))
+* dicas de custo de cache ([#27](https://github.com/nidelson/claude-code-statusline/issues/27)) ([3b9835a](https://github.com/nidelson/claude-code-statusline/commit/3b9835aea24cf887edaf0486e8b1b1bf3c48eddd))
+
 ## [0.4.0](https://github.com/nidelson/claude-code-statusline/compare/v0.3.0...v0.4.0) (2026-08-16)
 
 
