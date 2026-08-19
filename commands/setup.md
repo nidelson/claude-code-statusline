@@ -140,7 +140,8 @@ existir, crie:
   "version": 1,
   "lines": [
     ["repo", "branch", "git-status", "worktree", "velocity", "cache", "cost", "flow", "model"],
-    ["context", "rate-forecast", "sprint"]
+    ["context", "rate-forecast", "sprint"],
+    ["tip"]
   ],
   "separator": "|",
   "icons": true,
