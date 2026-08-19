@@ -290,17 +290,28 @@ tip"
   [ "$status" -ne 0 ]
 }
 
+# Largura em COLUNAS, não em bytes.
+#
+# `${#var}` conta bytes quando o locale é C, que é o do runner do Windows: a
+# frase do Flow tem 77 caracteres e 85 bytes, porque `→` ocupa três e cada
+# acento dois. Remover os bytes de continuação de UTF-8 (0x80–0xBF) deixa
+# exatamente um byte por caractere, e a contagem passa a valer em qualquer
+# locale. O que a barra disputa é coluna de terminal, não byte.
+tip_width() {
+  printf '%s' "$1" | LC_ALL=C tr -d '\200-\277' | LC_ALL=C wc -c | tr -d ' \n'
+}
+
 @test "every phrase fits in eighty columns" {
   local widest=0 n
   run _tip_phrase flow 116 25 1755900000 1756100000
-  n="${#output}" ; [ "$n" -gt "$widest" ] && widest="$n"
+  n="$(tip_width "$output")" ; [ "$n" -gt "$widest" ] && widest="$n"
   run _tip_phrase 7d 134 23 1755870000 1756000000
-  n="${#output}" ; [ "$n" -gt "$widest" ] && widest="$n"
+  n="$(tip_width "$output")" ; [ "$n" -gt "$widest" ] && widest="$n"
   run _tip_phrase 5h 118 60 1755897000 1755900000
-  n="${#output}" ; [ "$n" -gt "$widest" ] && widest="$n"
+  n="$(tip_width "$output")" ; [ "$n" -gt "$widest" ] && widest="$n"
   # Uma projeção de três dígitos é o pior caso de largura que a fonte produz.
   run _tip_phrase 7d 999 23 1755870000 1756000000
-  n="${#output}" ; [ "$n" -gt "$widest" ] && widest="$n"
+  n="$(tip_width "$output")" ; [ "$n" -gt "$widest" ] && widest="$n"
   # Contraprova: sem ela, uma função que não existe deixa widest em zero e o
   # teste passa afirmando que frases inexistentes cabem em 80 colunas.
   [ "$widest" -ge 60 ]
