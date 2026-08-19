@@ -52,13 +52,26 @@ _tip_one() {
   set -- $raw
   proj="$1"; used="$2"; blocked="$3"; reset="$4"
 
+  now="$(_tip_now)"
+
+  # Data de bloqueio no passado não é dica.
+  #
+  # Acontece de verdade: um payload em cache pode carregar um `blocked_epoch`
+  # que já venceu, e nesse caso `sl_stamp_label` recusa formatá-lo — o widget da
+  # fonte esconde o `🔒` e a barra não mostra bloqueio nenhum. Sem esta guarda a
+  # dica explicaria um cadeado que não está na tela, que é exatamente o que ela
+  # não pode fazer. Encontrado num teste de ponta a ponta, não pela suíte.
+  case "$blocked" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  [ "$blocked" -gt "$now" ] || return 1
+
   # A frase vem ANTES da decisão de mostrar, e a ordem não é estilo: o 5h pode
   # recusar por causa do piso de 15 minutos, e se o estado fosse gravado antes
   # disso a fonte consumiria a virada em silêncio — a dica nunca apareceria,
   # nem quando a pausa ficasse longa o bastante para valer a pena.
   phrase="$(_tip_phrase "$src" "$proj" "$used" "$blocked" "$reset")" || return 1
 
-  now="$(_tip_now)"
   _tip_should_show "$src" "$proj" "$blocked" "$now" || return 1
 
   printf '%s' "$phrase"

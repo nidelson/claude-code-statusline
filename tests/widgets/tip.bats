@@ -128,3 +128,14 @@ EOF
   run widget_tip_render
   [ "$output" = "$FLOW_TIP" ]
 }
+
+@test "stays silent when the block date is already in the past" {
+  write_flow 25 116.4 1755900000
+  run widget_tip_render
+  [ "$output" = "$FLOW_TIP" ]
+  # Mesmo payload, relógio depois da data de bloqueio: o widget da fonte também
+  # esconde o cadeado nesse caso, e a dica não pode falar do que não está na tela.
+  SL_NOW=1755900001
+  run widget_tip_render
+  [ "$output" = "" ]
+}
