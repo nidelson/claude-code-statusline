@@ -15,6 +15,9 @@ SL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$SL_ROOT/lib/sanitize.sh"
 . "$SL_ROOT/lib/timefmt.sh"
 . "$SL_ROOT/lib/num.sh"
+# Por último: lib/tips.sh consome sl_round, sl_fmt_countdown, sl_jq e
+# sl_config_widget_opt, então precisa de todas as anteriores já em memória.
+. "$SL_ROOT/lib/tips.sh"
 
 input="$(cat)"
 sl_parse_stdin "$input"
