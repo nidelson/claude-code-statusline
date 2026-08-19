@@ -299,3 +299,78 @@ _tip_rf_source() {
   [ -n "$3" ] || return 1
   printf '%s %s %s %s' "$2" "$(sl_round "$pct")" "$3" "$reset"
 }
+
+# ── As frases ──
+
+# Piso da pausa do 5h. Travar quatro minutos antes de a janela virar não vale
+# uma linha na barra: a janela renova em horas, e o custo de estourar ali é uma
+# pausa, não um bloqueio.
+SL_TIP_5H_MIN_PAUSE=900
+
+# A frase de uma fonte, em uma linha de no máximo 80 colunas.
+#
+# ── Nenhuma data aparece aqui ──
+#
+# É decisão, não esquecimento. `🔒 Fri·2d8h` e `⟳` já estão na linha de cima,
+# cada um com seu formato decidido. Repetir a data custava trinta colunas para
+# não acrescentar nada — e foi o que estourou os 80 caracteres no primeiro
+# rascunho. Sobra o que a barra NÃO consegue dizer: que o número é projeção e
+# não consumo, e quanto o ritmo precisa cair.
+#
+# ── "No ritmo atual" nunca vira "nas últimas 3h" ──
+#
+# O flow-consumption.json entrega `projected_percentage` pronto sem dizer sobre
+# que período, e o bin/rate-forecast.sh reporta o MAIOR entre duas projeções —
+# a da média da janela e a do ritmo recente — de modo que nem o LOOKBACK
+# descreve o que gerou o número. Nomear uma janela que a fonte não afirma é
+# inventar precisão, numa frase cujo trabalho é ensinar a ler um número.
+#
+# ── O 5h fala outra coisa ──
+#
+# Ele troca "não gasto" pela duração da pausa, porque é isso que muda a decisão
+# ali: a janela renova em horas, então o custo não é um bloqueio, é ficar
+# parado.
+_tip_phrase() {
+  local src="$1" proj="$2" used="$3" blocked="$4" reset="$5"
+  local cut label pause gap
+
+  case "$src" in
+    flow|5h|7d) ;;
+    *) return 1 ;;
+  esac
+
+  cut="$(_tip_cut "$proj" "$used")" || cut=""
+
+  if [ "$src" = "5h" ]; then
+    case "$reset" in ''|*[!0-9]*) return 1 ;; esac
+    case "$blocked" in ''|*[!0-9]*) return 1 ;; esac
+    gap=$(( reset - blocked ))
+    [ "$gap" -ge "$SL_TIP_5H_MIN_PAUSE" ] || return 1
+    pause="$(sl_fmt_countdown "$gap")"
+    if [ -n "$cut" ]; then
+      printf 'Dica da janela 5h: →%s%% é projeção — cortar %s%% evita %s parado' \
+        "$proj" "$cut" "$pause"
+    else
+      printf 'Dica da janela 5h: →%s%% é projeção — %s parado se o ritmo seguir' \
+        "$proj" "$pause"
+    fi
+    return 0
+  fi
+
+  if [ "$src" = "flow" ]; then label="Dica do Flow"; else label="Dica da janela 7d"; fi
+
+  # A cauda difere entre as duas só no tamanho: "evita a trava" cabe na frase do
+  # Flow, cujo rótulo é cinco colunas mais curto, e estouraria a do 7d.
+  if [ -n "$cut" ]; then
+    if [ "$src" = "flow" ]; then
+      printf '%s: →%s%% é projeção, não gasto — cortar %s%% do ritmo evita a trava' \
+        "$label" "$proj" "$cut"
+    else
+      printf '%s: →%s%% é projeção, não gasto — cortar %s%% do ritmo evita' \
+        "$label" "$proj" "$cut"
+    fi
+  else
+    printf '%s: →%s%% é projeção, não gasto — a cota trava antes de renovar' \
+      "$label" "$proj"
+  fi
+}

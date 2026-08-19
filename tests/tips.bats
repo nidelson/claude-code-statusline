@@ -258,3 +258,51 @@ tip"
   run _tip_rf_source 7d
   [ "$status" -ne 0 ]
 }
+
+# ── as frases ──
+
+@test "flow phrase corrects the reading and gives the slowdown target" {
+  run _tip_phrase flow 116 25 1755900000 1756100000
+  [ "$output" = "Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+}
+
+@test "seven day phrase names its own window" {
+  run _tip_phrase 7d 134 23 1755870000 1756000000
+  [ "$output" = "Dica da janela 7d: →134% é projeção, não gasto — cortar 31% do ritmo evita" ]
+}
+
+@test "five hour phrase trades the reading fix for the length of the pause" {
+  run _tip_phrase 5h 118 60 1755897000 1755900000
+  [ "$output" = "Dica da janela 5h: →118% é projeção — cortar 31% evita 50m parado" ]
+}
+
+@test "five hour phrase stays silent when the pause is shorter than the floor" {
+  run _tip_phrase 5h 118 60 1755897000 1755900000
+  [ "$output" = "Dica da janela 5h: →118% é projeção — cortar 31% evita 50m parado" ]
+  run _tip_phrase 5h 118 60 1755899400 1755900000
+  [ "$status" -ne 0 ]
+}
+
+@test "phrase refuses a source it does not know" {
+  run _tip_phrase flow 116 25 1755900000 1756100000
+  [ -n "$output" ]
+  run _tip_phrase 30d 116 25 1755900000 1756100000
+  [ "$status" -ne 0 ]
+}
+
+@test "every phrase fits in eighty columns" {
+  local widest=0 n
+  run _tip_phrase flow 116 25 1755900000 1756100000
+  n="${#output}" ; [ "$n" -gt "$widest" ] && widest="$n"
+  run _tip_phrase 7d 134 23 1755870000 1756000000
+  n="${#output}" ; [ "$n" -gt "$widest" ] && widest="$n"
+  run _tip_phrase 5h 118 60 1755897000 1755900000
+  n="${#output}" ; [ "$n" -gt "$widest" ] && widest="$n"
+  # Uma projeção de três dígitos é o pior caso de largura que a fonte produz.
+  run _tip_phrase 7d 999 23 1755870000 1756000000
+  n="${#output}" ; [ "$n" -gt "$widest" ] && widest="$n"
+  # Contraprova: sem ela, uma função que não existe deixa widest em zero e o
+  # teste passa afirmando que frases inexistentes cabem em 80 colunas.
+  [ "$widest" -ge 60 ]
+  [ "$widest" -le 80 ]
+}
