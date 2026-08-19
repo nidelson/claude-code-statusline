@@ -12,6 +12,16 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    # Sem isto o job herda o default do GitHub: 360 minutos. Medido em 19/08/2026,
+    # um `apt-get update` pendurou no mirror do runner e o job ficou 35 minutos sem
+    # emitir uma linha sequer — a suíte nem chegou a rodar. Teria consumido seis
+    # horas de runner se ninguém cancelasse, e o sintoma é justamente o que não
+    # chama atenção: nenhum erro, só um check que nunca fecha.
+    #
+    # 20 minutos são 2,1× o pior caso já observado — Windows 9m36s em 41 execuções
+    # bem-sucedidas, contra 5m02s no Linux e 2m15s no macOS. Folga suficiente para
+    # um runner lento; curta o bastante para uma trava virar falha em vez de espera.
+    timeout-minutes: 20
     # O runner Windows roda pwsh por padrão. Fixar bash aqui faz todos os passos
     # usarem o Git Bash — que é exatamente o interpretador pelo qual o Claude
     # Code roteia a statusline naquela plataforma quando ele está instalado.
