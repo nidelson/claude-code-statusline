@@ -217,21 +217,21 @@ tip"
   write_flow 25 116 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "${output#*	}" = "Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
 }
 
 @test "seven day phrase names its own window" {
   fake_forecast "crit 134 1755870000"
   SL_7D_PCT=23 ; SL_7D_RESET=1756000000 ; SL_NOW=1755000000
   run _tip_src_7d ""
-  [ "${output#*	}" = "Dica da janela 7d: →134% é projeção, não gasto — cortar 31% do ritmo evita" ]
+  [ "${output#*	}" = "⎿ Janela 7d: →134% é projeção, não gasto — cortar 31% do ritmo evita" ]
 }
 
 @test "five hour phrase trades the reading fix for the length of the pause" {
   fake_forecast "crit 118 1755897000"
   SL_5H_PCT=60 ; SL_5H_RESET=1755900000 ; SL_NOW=1755000000
   run _tip_src_5h ""
-  [ "${output#*	}" = "Dica da janela 5h: →118% é projeção — cortar 31% evita 50m parado" ]
+  [ "${output#*	}" = "⎿ Janela 5h: →118% é projeção — cortar 31% evita 50m parado" ]
 }
 
 @test "five hour phrase stays silent when the pause is shorter than the floor" {
@@ -322,7 +322,7 @@ tip_width() {
   write_flow 25 116.4 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "$output" = "$(printf '0:1755900000\tDica do Flow: →116%% é projeção, não gasto — cortar 18%% do ritmo evita a trava')" ]
+  [ "$output" = "$(printf '0:1755900000\t⎿ Flow: →116%% é projeção, não gasto — cortar 18%% do ritmo evita a trava')" ]
 }
 
 # ── preço derivado do custo real ──
@@ -398,7 +398,7 @@ tip"
   SL_COST=88 ; SL_CTX_USED=393000 ; SL_NOW=1755000000
   fake_probe 1754990000 3600
   run _tip_src_cache_cold ""
-  [[ "$output" == *"Dica do cache: regravar 393k custa 2×"* ]]
+  [[ "$output" == *"⎿ Cache: regravar 393k custa 2×"* ]]
   [[ "$output" == *"vale a partir de 3 trocas"* ]]
 }
 
@@ -489,4 +489,46 @@ tip"
   [ "$w2" -ge 50 ]
   [ "$w1" -le 80 ]
   [ "$w2" -le 80 ]
+}
+
+# ── o prefixo da linha de dica ──
+
+@test "label uses the note glyph when icons are on" {
+  SL_CONFIG_ICONS=1
+  run _tip_label "Flow:" "Dica do Flow:"
+  [ "$output" = "⎿ Flow:" ]
+}
+
+@test "label falls back to the spelled out word without icons" {
+  SL_CONFIG_ICONS=1
+  run _tip_label "Flow:" "Dica do Flow:"
+  [ "$output" = "⎿ Flow:" ]
+  SL_CONFIG_ICONS=0
+  run _tip_label "Flow:" "Dica do Flow:"
+  [ "$output" = "Dica do Flow:" ]
+}
+
+@test "flow phrase carries the note glyph with icons on" {
+  SL_CONFIG_ICONS=1
+  write_flow 25 116 1755900000
+  SL_NOW=1755000000
+  run _tip_src_flow ""
+  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+}
+
+@test "flow phrase spells out the word with icons off" {
+  SL_CONFIG_ICONS=0
+  write_flow 25 116 1755900000
+  SL_NOW=1755000000
+  run _tip_src_flow ""
+  [ "${output#*	}" = "Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+}
+
+@test "cache phrase carries the note glyph too" {
+  SL_CONFIG_ICONS=1
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88 ; SL_CTX_USED=393000 ; SL_NOW=1755000000
+  fake_probe 1754990000 3600
+  run _tip_src_cache_cold ""
+  [ "${output#*	}" = "⎿ Cache: regravar 393k custa 2× (~\$3.50) — vale a partir de 3 trocas" ]
 }

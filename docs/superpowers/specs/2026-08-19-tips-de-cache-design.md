@@ -155,8 +155,8 @@ tip-state.tsv   fonte  chave  prompt_id
 | `cache-expiring` | countdown < 60 s **e** contexto ≥ 100k | `warn` |
 
 ```
-Dica do cache: regravar 393k custa 2× (~$3,50) — vale a partir de 3 trocas    (74)
-Dica do cache: 45s até esfriar — mandar algo agora aproveita 393k gravados    (74)
+⎿ Cache: regravar 393k custa 2× (~$3,50) — vale a partir de 3 trocas    (74)
+⎿ Cache: 45s até esfriar — mandar algo agora aproveita 393k gravados    (74)
 ```
 
 **Nenhuma das duas diz "esfriou".** O primeiro rascunho dizia, e estourava os 80

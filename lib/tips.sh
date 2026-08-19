@@ -281,6 +281,32 @@ _tip_slug() {
   printf '%s' "${n//-/_}"
 }
 
+# O rótulo da linha de dica.
+#
+# `⎿` é o glifo com que o Claude Code marca as próprias notas, e a linha de dica
+# é exatamente isso: uma nota sobre a barra, não mais um dado dela. Emprestá-lo
+# dá à linha o vocabulário visual que o usuário já reconhece, sem inventar marca
+# nova.
+#
+# E ele paga o próprio espaço: se o glifo já diz "isto é uma nota", a palavra
+# "Dica" vira redundante, e as frases encolhem seis colunas em vez de crescer
+# duas. Mesma lição que cortou as datas das frases de projeção e o "esfriou" das
+# de cache — a dica só carrega o que mais nada está dizendo.
+#
+# Sem ícones a palavra volta, porque aí não há glifo para sinalizar nada. É o
+# mesmo arranjo de _flow_label em widgets/flow.sh.
+#
+# U+23BF é BMP e tem East Asian Width neutro — ao contrário do ⟳ e do 🔒, não
+# disputa célula com o texto seguinte, então dispensa o espaço defensivo que
+# aqueles exigem.
+_tip_label() {
+  if [ "${SL_CONFIG_ICONS:-1}" = "1" ]; then
+    printf '⎿ %s' "$1"
+  else
+    printf '%s' "$2"
+  fi
+}
+
 # A chave das fontes de projeção: "<degrau>:<blocked>".
 #
 # Devolve a chave ANTERIOR quando nada material mudou — é assim que a regra dos
@@ -347,29 +373,33 @@ _tip_src_projection() {
     [ "$gap" -ge "$SL_TIP_5H_MIN_PAUSE" ] || return 1
     pause="$(sl_fmt_countdown "$gap")"
     if [ -n "$cut" ]; then
-      printf '%s\tDica da janela 5h: →%s%% é projeção — cortar %s%% evita %s parado' \
-        "$key" "$proj" "$cut" "$pause"
+      printf '%s\t%s →%s%% é projeção — cortar %s%% evita %s parado' \
+        "$key" "$(_tip_label "Janela 5h:" "Dica da janela 5h:")" "$proj" "$cut" "$pause"
     else
-      printf '%s\tDica da janela 5h: →%s%% é projeção — %s parado se o ritmo seguir' \
-        "$key" "$proj" "$pause"
+      printf '%s\t%s →%s%% é projeção — %s parado se o ritmo seguir' \
+        "$key" "$(_tip_label "Janela 5h:" "Dica da janela 5h:")" "$proj" "$pause"
     fi
     return 0
   fi
 
-  if [ "$src" = "flow" ]; then label="Dica do Flow"; else label="Dica da janela 7d"; fi
+  if [ "$src" = "flow" ]; then
+    label="$(_tip_label "Flow:" "Dica do Flow:")"
+  else
+    label="$(_tip_label "Janela 7d:" "Dica da janela 7d:")"
+  fi
 
   # A cauda difere entre as duas só no tamanho: "evita a trava" cabe na frase do
   # Flow, cujo rótulo é cinco colunas mais curto, e estouraria a do 7d.
   if [ -n "$cut" ]; then
     if [ "$src" = "flow" ]; then
-      printf '%s\t%s: →%s%% é projeção, não gasto — cortar %s%% do ritmo evita a trava' \
+      printf '%s\t%s →%s%% é projeção, não gasto — cortar %s%% do ritmo evita a trava' \
         "$key" "$label" "$proj" "$cut"
     else
-      printf '%s\t%s: →%s%% é projeção, não gasto — cortar %s%% do ritmo evita' \
+      printf '%s\t%s →%s%% é projeção, não gasto — cortar %s%% do ritmo evita' \
         "$key" "$label" "$proj" "$cut"
     fi
   else
-    printf '%s\t%s: →%s%% é projeção, não gasto — a cota trava antes de renovar' \
+    printf '%s\t%s →%s%% é projeção, não gasto — a cota trava antes de renovar' \
       "$key" "$label" "$proj"
   fi
 }
@@ -520,7 +550,8 @@ _tip_src_cache_cold() {
     money="$(awk -v c="$cents" 'BEGIN{ printf " (~$%.2f)", c/100 }')"
   fi
 
-  printf 'cold\tDica do cache: regravar %s custa %s×%s — vale a partir de %s trocas' \
+  printf 'cold\t%s regravar %s custa %s×%s — vale a partir de %s trocas' \
+    "$(_tip_label "Cache:" "Dica do cache:")" \
     "$(sl_fmt_tokens "$SL_CTX_USED")" "$w" "$money" "$(_tip_breakeven "$w")"
 }
 
@@ -538,6 +569,6 @@ _tip_src_cache_expiring() {
   [ "$rem" -gt 0 ] || return 1
   [ "$rem" -le "$SL_TIP_CACHE_SOON" ] || return 1
 
-  printf 'warn\tDica do cache: %ss até esfriar — mandar algo agora aproveita %s gravados' \
-    "$rem" "$(sl_fmt_tokens "$SL_CTX_USED")"
+  printf 'warn\t%s %ss até esfriar — mandar algo agora aproveita %s gravados' \
+    "$(_tip_label "Cache:" "Dica do cache:")" "$rem" "$(sl_fmt_tokens "$SL_CTX_USED")"
 }

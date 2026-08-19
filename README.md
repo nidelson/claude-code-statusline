@@ -766,7 +766,7 @@ comportamento de quem não pediu esse widget.
 Explica um bloqueio de cota projetado, e diz quanto o ritmo precisa cair.
 
 ```
-Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava
+⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava
 ```
 
 Este widget não mostra dado novo — ele ensina a ler o que os outros já mostram.
@@ -798,15 +798,15 @@ configuração não gera dica — explicar um número que ninguém está vendo n
 explicaria nada.
 
 **A janela de 5h fala diferente**, porque ali o custo não é um bloqueio de dias,
-é uma pausa: `Dica da janela 5h: →118% é projeção — cortar 31% evita 50m
+é uma pausa: `⎿ Janela 5h: →118% é projeção — cortar 31% evita 50m
 parado`. E ela se cala quando a trava cai a menos de quinze minutos do reset —
 travar quatro minutos antes de a janela virar não vale interromper ninguém.
 
 **As dicas de cache** vêm da mesma linha, e respondem outra pergunta:
 
 ```
-Dica do cache: regravar 393k custa 2× (~$3.50) — vale a partir de 3 trocas
-Dica do cache: 45s até esfriar — mandar algo agora aproveita 393k gravados
+⎿ Cache: regravar 393k custa 2× (~$3.50) — vale a partir de 3 trocas
+⎿ Cache: 45s até esfriar — mandar algo agora aproveita 393k gravados
 ```
 
 Quando o prefixo expira, a próxima troca regrava o contexto inteiro. Ler do
@@ -830,6 +830,13 @@ o custo não é derivável, a cifra some e o múltiplo fica.
 As duas só falam com **contexto acima de 100k** — esfriar com 12k custa
 centavos, e uma dica que aparecesse aí ensinaria a ignorar a que aparece com
 393k. E nenhuma delas diz "esfriou": o `☁ 100%·cold` da linha de cima já diz.
+
+**O `⎿` é emprestado do Claude Code**, que marca com ele as próprias notas. A
+linha de dica é isso — uma nota sobre a barra, não mais um dado dela — e o glifo
+lhe dá um vocabulário que você já reconhece. Ele também paga o próprio espaço:
+se o símbolo já diz "isto é uma nota", a palavra "Dica" é redundante, e as frases
+encolhem seis colunas em vez de crescer duas. Com `icons: false` a palavra volta,
+porque aí não há glifo para sinalizar nada.
 
 **Precisa ficar sozinho na sua linha.** Quando duas fontes projetam bloqueio ao
 mesmo tempo, o widget emite duas linhas; dividindo a linha com outro widget,
