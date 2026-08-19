@@ -14,7 +14,8 @@
 # um JSON. Quem chega por este caminho recebe os widgets nos padrões deles, o
 # que é a degradação certa — sem arquivo, não há preferência a respeitar.
 SL_CONFIG_DEFAULT_LINES='repo branch git-status worktree velocity cache cost flow model
-context rate-forecast sprint'
+context rate-forecast sprint
+tip'
 SL_CONFIG_DEFAULT_SEP='|'
 # Ícones ligados por padrão. Os glifos usados são Unicode padrão (✻, ◆), não
 # Nerd Font — renderizam em qualquer terminal moderno sem exigir fonte extra.

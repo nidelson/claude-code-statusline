@@ -43,11 +43,11 @@ sobre o trabalho. O segundo é mais difícil de expor e mais fácil de esquecer.
 ## Status
 
 O contrato de widget está estabelecido e coberto por testes; a versão
-publicada e o que mudou em cada uma estão no [CHANGELOG.md](CHANGELOG.md). Quatorze
+publicada e o que mudou em cada uma estão no [CHANGELOG.md](CHANGELOG.md). Quinze
 widgets estão disponíveis hoje — `model`, `repo`, `branch`, `git`, `git-status`,
 `worktree`, `context`, `velocity`, `cache`, `cost`, `rate-forecast`, `sprint`,
-`flow` e `command` — cada um exercitando uma parte diferente do contrato: sem
-estado, estado em cache, aritmética pura, sequências de escape de terminal e
+`flow`, `command` e `tip` — cada um exercitando uma parte diferente do contrato:
+sem estado, estado em cache, aritmética pura, sequências de escape de terminal e
 processos externos com cores semânticas.
 
 O `command` é a válvula de escape: ele roda qualquer programa e renderiza a
@@ -760,6 +760,58 @@ Numa máquina que nunca conseguiu ler nada, não há o que preservar, e o widget
 mostra só o `⚠`. Numa máquina que nem tem o `flow` na configuração, o arquivo de
 cache não existe e o widget não renderiza nada — silêncio continua sendo o
 comportamento de quem não pediu esse widget.
+
+### `tip`
+
+Explica um bloqueio de cota projetado, e diz quanto o ritmo precisa cair.
+
+```
+Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava
+```
+
+Este widget não mostra dado novo — ele ensina a ler o que os outros já mostram.
+`Flow 💰 25%→116% 🔒 sex·2d8h` é denso e correto, e ilegível na primeira vez: a
+leitura intuitiva de `25%` ao lado de `116%` é "gastei 25 de 116", que é o
+contrário do que a linha afirma. Depois de instruída, a pessoa lê a linha num
+relance — e é por isso que a dica **some sozinha**, em vez de ocupar espaço
+permanente.
+
+**Nada no resto da barra muda.** Nenhum widget é alterado, nenhum campo sai da
+linha. O `tip` só acrescenta.
+
+**Quanto cortar** sai de `(proj − 100) / (proj − used)`, que elimina o tempo e o
+ritmo da conta e serve às três fontes. O número está aí porque a intuição erra
+feio: `→116%` sugere "corte pela metade", quando o corte real é 18%. Uma dica
+que só assusta é pior que nenhuma.
+
+**Quando aparece:** na virada — quando a projeção cruza 100% —, quando ela sobe
+um degrau de 25 pontos, e quando a data de bloqueio antecipa mais de 10% do
+tempo que faltava. Oscilar dentro do mesmo degrau não faz a dica voltar.
+
+**Quando some:** no seu próximo prompt, não por relógio. Quem deixa uma tarefa
+longa rodando e volta depois encontra o aviso ainda na tela; um timer o teria
+apagado justamente aí. O sinal é o `promptId` do transcript, que identifica o
+turno.
+
+**Ele só fala do que está na tela.** Uma fonte cujo widget não está na
+configuração não gera dica — explicar um número que ninguém está vendo não
+explicaria nada.
+
+**A janela de 5h fala diferente**, porque ali o custo não é um bloqueio de dias,
+é uma pausa: `Dica da janela 5h: →118% é projeção — cortar 31% evita 50m
+parado`. E ela se cala quando a trava cai a menos de quinze minutos do reset —
+travar quatro minutos antes de a janela virar não vale interromper ninguém.
+
+**Precisa ficar sozinho na sua linha.** Quando duas fontes projetam bloqueio ao
+mesmo tempo, o widget emite duas linhas; dividindo a linha com outro widget,
+isso quebraria a montagem de separadores. A configuração padrão já o põe assim:
+
+```json
+{ "lines": [ ["repo", "branch", "cost", "model"], ["context", "rate-forecast", "flow"], ["tip"] ] }
+```
+
+Uma linha que renderiza vazio não é desenhada, então ela não custa nada
+enquanto não há o que dizer. Para desligar, tire `tip` de `lines`.
 
 ### `command`
 
