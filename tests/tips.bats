@@ -90,82 +90,34 @@ mk_transcript() {   # mk_transcript <promptId>
 # ── estado por fonte ──
 
 @test "state round trips a source" {
-  _tip_state_put flow 0 1755900000 turno-A
+  _tip_state_put flow "0:1755900000" turno-A
   run _tip_state_get flow
-  [ "$output" = "0 1755900000 turno-A" ]
+  [ "$output" = "0:1755900000 turno-A" ]
 }
 
 @test "state keeps sources independent" {
-  _tip_state_put flow 0 1755900000 turno-A
-  _tip_state_put 7d   2 1755800000 turno-B
-  _tip_state_put flow 1 1755700000 turno-C
+  _tip_state_put flow "0:1755900000" turno-A
+  _tip_state_put 7d   "2:1755800000" turno-B
+  _tip_state_put flow "1:1755700000" turno-C
   run _tip_state_get 7d
-  [ "$output" = "2 1755800000 turno-B" ]
+  [ "$output" = "2:1755800000 turno-B" ]
 }
 
 @test "state drops one source and leaves the others" {
-  _tip_state_put flow 0 1755900000 turno-A
-  _tip_state_put 7d   2 1755800000 turno-B
+  _tip_state_put flow "0:1755900000" turno-A
+  _tip_state_put 7d   "2:1755800000" turno-B
   _tip_state_drop flow
   run _tip_state_get 7d
-  [ "$output" = "2 1755800000 turno-B" ]
+  [ "$output" = "2:1755800000 turno-B" ]
   run _tip_state_get flow
   [ "$status" -ne 0 ]
 }
 
 @test "state file disappears once the last source is dropped" {
-  _tip_state_put flow 0 1755900000 turno-A
+  _tip_state_put flow "0:1755900000" turno-A
   [ -f "$SL_CACHE_DIR/tip-state.tsv" ]
   _tip_state_drop flow
   [ ! -f "$SL_CACHE_DIR/tip-state.tsv" ]
-}
-
-# ── a regra ──
-
-@test "shows on the first crossing above one hundred" {
-  mk_transcript "turno-A"
-  run _tip_should_show flow 116 1755900000 1755000000
-  [ "$status" -eq 0 ]
-}
-
-@test "keeps showing within the same turn" {
-  mk_transcript "turno-A"
-  _tip_should_show flow 116 1755900000 1755000000
-  run _tip_should_show flow 117 1755900000 1755000000
-  [ "$status" -eq 0 ]
-}
-
-@test "goes quiet on the next turn when nothing got worse" {
-  mk_transcript "turno-A"
-  _tip_should_show flow 116 1755900000 1755000000
-  mk_transcript "turno-B"
-  run _tip_should_show flow 117 1755900000 1755000000
-  [ "$status" -ne 0 ]
-}
-
-@test "speaks again on the next turn when the step went up" {
-  mk_transcript "turno-A"
-  _tip_should_show flow 116 1755900000 1755000000
-  mk_transcript "turno-B"
-  run _tip_should_show flow 130 1755900000 1755000000
-  [ "$status" -eq 0 ]
-}
-
-@test "speaks again when the block date moved more than a tenth closer" {
-  mk_transcript "turno-A"
-  _tip_should_show flow 116 1755900000 1755000000
-  mk_transcript "turno-B"
-  # Faltavam 900000s, então a margem é 90000s. Antecipar 200000s passa dela.
-  run _tip_should_show flow 116 1755700000 1755000000
-  [ "$status" -eq 0 ]
-}
-
-@test "stays quiet when the block date barely moved" {
-  mk_transcript "turno-A"
-  _tip_should_show flow 116 1755900000 1755000000
-  mk_transcript "turno-B"
-  run _tip_should_show flow 116 1755880000 1755000000
-  [ "$status" -ne 0 ]
 }
 
 # ── fontes ──
@@ -262,31 +214,42 @@ tip"
 # ── as frases ──
 
 @test "flow phrase corrects the reading and gives the slowdown target" {
-  run _tip_phrase flow 116 25 1755900000 1756100000
-  [ "$output" = "Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+  write_flow 25 116 1755900000
+  SL_NOW=1755000000
+  run _tip_src_flow ""
+  [ "${output#*	}" = "Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
 }
 
 @test "seven day phrase names its own window" {
-  run _tip_phrase 7d 134 23 1755870000 1756000000
-  [ "$output" = "Dica da janela 7d: →134% é projeção, não gasto — cortar 31% do ritmo evita" ]
+  fake_forecast "crit 134 1755870000"
+  SL_7D_PCT=23 ; SL_7D_RESET=1756000000 ; SL_NOW=1755000000
+  run _tip_src_7d ""
+  [ "${output#*	}" = "Dica da janela 7d: →134% é projeção, não gasto — cortar 31% do ritmo evita" ]
 }
 
 @test "five hour phrase trades the reading fix for the length of the pause" {
-  run _tip_phrase 5h 118 60 1755897000 1755900000
-  [ "$output" = "Dica da janela 5h: →118% é projeção — cortar 31% evita 50m parado" ]
+  fake_forecast "crit 118 1755897000"
+  SL_5H_PCT=60 ; SL_5H_RESET=1755900000 ; SL_NOW=1755000000
+  run _tip_src_5h ""
+  [ "${output#*	}" = "Dica da janela 5h: →118% é projeção — cortar 31% evita 50m parado" ]
 }
 
 @test "five hour phrase stays silent when the pause is shorter than the floor" {
-  run _tip_phrase 5h 118 60 1755897000 1755900000
-  [ "$output" = "Dica da janela 5h: →118% é projeção — cortar 31% evita 50m parado" ]
-  run _tip_phrase 5h 118 60 1755899400 1755900000
+  SL_5H_PCT=60 ; SL_5H_RESET=1755900000 ; SL_NOW=1755000000
+  fake_forecast "crit 118 1755897000"
+  run _tip_src_5h ""
+  [ -n "$output" ]
+  fake_forecast "crit 118 1755899400"
+  run _tip_src_5h ""
   [ "$status" -ne 0 ]
 }
 
-@test "phrase refuses a source it does not know" {
-  run _tip_phrase flow 116 25 1755900000 1756100000
+@test "projection source refuses a window it does not know" {
+  fake_forecast "crit 134 1755870000"
+  SL_7D_PCT=23 ; SL_7D_RESET=1756000000 ; SL_NOW=1755000000
+  run _tip_src_projection 7d ""
   [ -n "$output" ]
-  run _tip_phrase 30d 116 25 1755900000 1756100000
+  run _tip_src_projection 30d ""
   [ "$status" -ne 0 ]
 }
 
@@ -303,17 +266,61 @@ tip_width() {
 
 @test "every phrase fits in eighty columns" {
   local widest=0 n
-  run _tip_phrase flow 116 25 1755900000 1756100000
-  n="$(tip_width "$output")" ; [ "$n" -gt "$widest" ] && widest="$n"
-  run _tip_phrase 7d 134 23 1755870000 1756000000
-  n="$(tip_width "$output")" ; [ "$n" -gt "$widest" ] && widest="$n"
-  run _tip_phrase 5h 118 60 1755897000 1755900000
-  n="$(tip_width "$output")" ; [ "$n" -gt "$widest" ] && widest="$n"
+  SL_NOW=1755000000
+  write_flow 25 116 1755900000
+  run _tip_src_flow ""
+  n="$(tip_width "${output#*	}")" ; [ "$n" -gt "$widest" ] && widest="$n"
+  SL_7D_PCT=23 ; SL_7D_RESET=1756000000
+  fake_forecast "crit 134 1755870000"
+  run _tip_src_7d ""
+  n="$(tip_width "${output#*	}")" ; [ "$n" -gt "$widest" ] && widest="$n"
+  SL_5H_PCT=60 ; SL_5H_RESET=1755900000
+  fake_forecast "crit 118 1755897000"
+  run _tip_src_5h ""
+  n="$(tip_width "${output#*	}")" ; [ "$n" -gt "$widest" ] && widest="$n"
   # Uma projeção de três dígitos é o pior caso de largura que a fonte produz.
-  run _tip_phrase 7d 999 23 1755870000 1756000000
-  n="$(tip_width "$output")" ; [ "$n" -gt "$widest" ] && widest="$n"
-  # Contraprova: sem ela, uma função que não existe deixa widest em zero e o
-  # teste passa afirmando que frases inexistentes cabem em 80 colunas.
+  fake_forecast "crit 999 1755870000"
+  run _tip_src_7d ""
+  n="$(tip_width "${output#*	}")" ; [ "$n" -gt "$widest" ] && widest="$n"
+  # Contraprova: sem ela, funções ausentes deixam widest em zero e o teste passa
+  # afirmando que frases inexistentes cabem em 80 colunas.
   [ "$widest" -ge 60 ]
   [ "$widest" -le 80 ]
+}
+
+# ── contrato de fonte generalizado ──
+
+@test "slug turns a dashed source name into a function suffix" {
+  run _tip_slug cache-cold
+  [ "$output" = "cache_cold" ]
+}
+
+@test "flow key changes when the step goes up" {
+  run _tip_flow_key "0:1755900000" 1 1755900000 1755000000
+  [ "$output" = "1:1755900000" ]
+}
+
+@test "flow key survives a block date that barely moved" {
+  run _tip_flow_key "0:1755900000" 1 1755900000 1755000000
+  [ "$output" = "1:1755900000" ]
+  # faltavam 900000s, margem 90000s; andou só 20000s
+  run _tip_flow_key "0:1755900000" 0 1755880000 1755000000
+  [ "$output" = "0:1755900000" ]
+}
+
+@test "flow key changes when the block date moved materially" {
+  run _tip_flow_key "0:1755900000" 0 1755700000 1755000000
+  [ "$output" = "0:1755700000" ]
+}
+
+@test "flow key with no previous state is the current one" {
+  run _tip_flow_key "" 0 1755900000 1755000000
+  [ "$output" = "0:1755900000" ]
+}
+
+@test "flow source emits a key and the very same phrase as before" {
+  write_flow 25 116.4 1755900000
+  SL_NOW=1755000000
+  run _tip_src_flow ""
+  [ "$output" = "$(printf '0:1755900000\tDica do Flow: →116%% é projeção, não gasto — cortar 18%% do ritmo evita a trava')" ]
 }

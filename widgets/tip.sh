@@ -34,45 +34,35 @@ register_widget tip \
   --self-color \
   --desc   "Explains a projected quota block and how much to slow down"
 
-# Tempo é entrada, não relógio — mesma razão de widgets/rate-forecast.sh: sem
-# isso a suíte passaria a depender do dia em que roda.
-_tip_now() {
-  if [ -n "$SL_NOW" ]; then printf '%s' "$SL_NOW"; else date +%s; fi
-}
-
-# Uma fonte: colhe, decide e formata. Retorna 1 quando não há o que dizer.
+# Uma fonte: chama, compara a chave com a gravada, decide.
 _tip_one() {
-  local src="$1" raw proj used blocked reset now phrase
+  local src="$1" fn out key phrase prev pkey ppid pid
 
-  case "$src" in
-    flow) raw="$(_tip_flow_source)"      || return 1 ;;
-    *)    raw="$(_tip_rf_source "$src")" || return 1 ;;
-  esac
+  fn="_tip_src_$(_tip_slug "$src")"
+  command -v "$fn" >/dev/null 2>&1 || return 1
 
-  set -- $raw
-  proj="$1"; used="$2"; blocked="$3"; reset="$4"
+  if prev="$(_tip_state_get "$src")"; then
+    pkey="${prev%% *}"
+    ppid="${prev#* }"
+  else
+    pkey=""; ppid=""
+  fi
 
-  now="$(_tip_now)"
+  out="$("$fn" "$pkey")" || return 1
+  key="${out%%	*}"
+  phrase="${out#*	}"
+  [ -n "$phrase" ] || return 1
 
-  # Data de bloqueio no passado não é dica.
-  #
-  # Acontece de verdade: um payload em cache pode carregar um `blocked_epoch`
-  # que já venceu, e nesse caso `sl_stamp_label` recusa formatá-lo — o widget da
-  # fonte esconde o `🔒` e a barra não mostra bloqueio nenhum. Sem esta guarda a
-  # dica explicaria um cadeado que não está na tela, que é exatamente o que ela
-  # não pode fazer. Encontrado num teste de ponta a ponta, não pela suíte.
-  case "$blocked" in
-    ''|*[!0-9]*) return 1 ;;
-  esac
-  [ "$blocked" -gt "$now" ] || return 1
+  pid="$(_tip_prompt_id)" || pid="-"
 
-  # A frase vem ANTES da decisão de mostrar, e a ordem não é estilo: o 5h pode
-  # recusar por causa do piso de 15 minutos, e se o estado fosse gravado antes
-  # disso a fonte consumiria a virada em silêncio — a dica nunca apareceria,
-  # nem quando a pausa ficasse longa o bastante para valer a pena.
-  phrase="$(_tip_phrase "$src" "$proj" "$used" "$blocked" "$reset")" || return 1
-
-  _tip_should_show "$src" "$proj" "$blocked" "$now" || return 1
+  # Chave nova carimba o turno corrente — é assim que a dica reaparece quando
+  # algo piorou, sem precisar de código de reexibição. Chave igual só continua
+  # na tela enquanto o turno for o mesmo.
+  if [ "$key" != "$pkey" ]; then
+    _tip_state_put "$src" "$key" "$pid"
+  else
+    [ "$pid" = "$ppid" ] || return 1
+  fi
 
   printf '%s' "$phrase"
 }
@@ -80,17 +70,16 @@ _tip_one() {
 widget_tip_render() {
   local src piece out=""
 
-  # Ordem fixa: Flow primeiro, porque a cota do provedor é a que bloqueia por
-  # dias; depois a janela mais longa. Que a ordem seja estável importa mais do
-  # que qual ela é — uma linha que troca de lugar entre repaints é lida como
-  # mudança, e a dica existe justamente para o momento em que algo mudou.
-  for src in flow 7d 5h; do
+  # Ordem fixa, vinda da lista: que ela seja estável importa mais do que qual
+  # ela é — uma linha que troca de lugar entre repaints é lida como mudança, e a
+  # dica existe justamente para o momento em que algo mudou.
+  for src in $SL_TIP_SOURCES; do
     if piece="$(_tip_one "$src")"; then
       out="${out}${out:+
 }${piece}"
     else
-      # Fonte que parou de projetar bloqueio esquece o que já disse, e volta a
-      # falar do zero se a condição retornar.
+      # Fonte que parou de ter o que dizer esquece o que disse, e volta a falar
+      # do zero se a condição retornar.
       _tip_state_drop "$src"
     fi
   done
