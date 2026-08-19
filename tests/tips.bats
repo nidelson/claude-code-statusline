@@ -381,3 +381,112 @@ mk_usage_transcript() {   # <input> <read> <write> <output>
   run _tip_regrave_cost 393000 2
   [ "$status" -ne 0 ]
 }
+
+# ── fontes de cache ──
+
+# _cache_probe vive em widgets/cache.sh e devolve "<timestamp> <ttl>". O tip só a
+# chama quando o widget cache está configurado; aqui ela é substituída direto.
+fake_probe() {   # fake_probe <epoch da última troca> <ttl>
+  eval "_cache_probe() { printf '%s %s' '$1' '$2'; }"
+  SL_CONFIG_LINES="repo branch
+context rate-forecast flow cache
+tip"
+}
+
+@test "cache cold speaks when the prefix expired with a large context" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88 ; SL_CTX_USED=393000 ; SL_NOW=1755000000
+  fake_probe 1754990000 3600
+  run _tip_src_cache_cold ""
+  [[ "$output" == *"Dica do cache: regravar 393k custa 2×"* ]]
+  [[ "$output" == *"vale a partir de 3 trocas"* ]]
+}
+
+@test "cache cold stays quiet below the context floor" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88 ; SL_CTX_USED=393000 ; SL_NOW=1755000000
+  fake_probe 1754990000 3600
+  run _tip_src_cache_cold ""
+  [ -n "$output" ]
+  SL_CTX_USED=12000
+  run _tip_src_cache_cold ""
+  [ "$status" -ne 0 ]
+}
+
+@test "cache cold stays quiet while the cache is still warm" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88 ; SL_CTX_USED=393000 ; SL_NOW=1755000000
+  fake_probe 1754990000 3600
+  run _tip_src_cache_cold ""
+  [ -n "$output" ]
+  fake_probe 1754999000 3600
+  run _tip_src_cache_cold ""
+  [ "$status" -ne 0 ]
+}
+
+@test "cache cold drops the price when it cannot be derived" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88 ; SL_CTX_USED=393000 ; SL_NOW=1755000000
+  fake_probe 1754990000 3600
+  run _tip_src_cache_cold ""
+  [[ "$output" == *'(~$'* ]]
+  SL_COST=0
+  run _tip_src_cache_cold ""
+  [[ "$output" == *"custa 2×"* ]]
+  [[ "$output" != *'(~$'* ]]
+}
+
+@test "cache cold uses the five minute multiplier on a short ttl" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88 ; SL_CTX_USED=393000 ; SL_NOW=1755000000
+  fake_probe 1754990000 300
+  run _tip_src_cache_cold ""
+  [[ "$output" == *"custa 1.25×"* ]]
+  [[ "$output" == *"vale a partir de 2 trocas"* ]]
+}
+
+@test "cache expiring speaks inside the last minute" {
+  SL_CTX_USED=393000 ; SL_NOW=1755000000
+  fake_probe 1754996445 3600
+  run _tip_src_cache_expiring ""
+  [[ "$output" == *"45s até esfriar"* ]]
+}
+
+@test "cache expiring stays quiet outside the last minute" {
+  SL_CTX_USED=393000 ; SL_NOW=1755000000
+  fake_probe 1754996445 3600
+  run _tip_src_cache_expiring ""
+  [ -n "$output" ]
+  fake_probe 1754999000 3600
+  run _tip_src_cache_expiring ""
+  [ "$status" -ne 0 ]
+}
+
+@test "cache sources stay quiet when the cache widget is not on the bar" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88 ; SL_CTX_USED=393000 ; SL_NOW=1755000000
+  fake_probe 1754990000 3600
+  run _tip_src_cache_cold ""
+  [ -n "$output" ]
+  SL_CONFIG_LINES="repo branch
+context flow
+tip"
+  run _tip_src_cache_cold ""
+  [ "$status" -ne 0 ]
+}
+
+@test "cache phrases fit in eighty columns" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88 ; SL_CTX_USED=1000000 ; SL_NOW=1755000000
+  local w1 w2
+  fake_probe 1754990000 3600
+  run _tip_src_cache_cold ""
+  w1="$(tip_width "${output#*	}")"
+  fake_probe 1754996445 3600
+  run _tip_src_cache_expiring ""
+  w2="$(tip_width "${output#*	}")"
+  [ "$w1" -ge 50 ]
+  [ "$w2" -ge 50 ]
+  [ "$w1" -le 80 ]
+  [ "$w2" -le 80 ]
+}

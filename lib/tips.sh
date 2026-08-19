@@ -261,7 +261,7 @@ _tip_rf_source() {
 # Foi essa inversão que abriu espaço para as dicas de cache: "o prefixo esfriou"
 # não tem projeção nem data de trava, e no contrato anterior — proj/used/blocked/
 # reset — teria de vir com quatro campos vazios que não significam nada.
-SL_TIP_SOURCES="flow 7d 5h"
+SL_TIP_SOURCES="flow 7d 5h cache-cold cache-expiring"
 
 # Piso da pausa do 5h. Travar quatro minutos antes de a janela virar não vale uma
 # linha na barra: a janela renova em horas, e o custo de estourar ali é uma
@@ -457,4 +457,87 @@ _tip_regrave_cost() {
     if (cost <= 0 || den <= 0 || tok <= 0) exit 1
     printf "%.0f", tok * w * (cost/den) * 100
   }'
+}
+
+# ── As dicas de cache ──
+
+# Piso de contexto. Esfriar com 12k na sessão custa centavos, e uma dica que
+# aparece nesse caso ensina a ignorar a que aparece com 393k. Uma casa acima do
+# limiar de gravação do cache.sh (10k), porque lá o que está em jogo é uma troca
+# e aqui é o contexto inteiro.
+SL_TIP_CTX_FLOOR=100000
+
+# Janela em que vale avisar que o cache está por esfriar. É o mesmo
+# SL_CACHE_TTL_CRIT do widget, e de propósito: o tempo já aparece em vermelho
+# lá, e a dica explica aquele vermelho. Dois números diferentes seriam duas
+# verdades sobre o mesmo instante.
+SL_TIP_CACHE_SOON=60
+
+# "<segundos restantes> <W>" do cache, ou 1.
+#
+# Depende de _cache_probe, que vive em widgets/cache.sh. O acoplamento é
+# deliberado e guardado: sem o widget na configuração a dica não fala, pela mesma
+# razão que vale para o flow — explicar um número que não está na tela não
+# explica nada. E quando ele está na configuração, o arquivo foi carregado antes
+# de qualquer render.
+_tip_cache_state() {
+  local raw ts ttl epoch rem
+  _tip_widget_configured cache || return 1
+  command -v _cache_probe >/dev/null 2>&1 || return 1
+  raw="$(_cache_probe)" || return 1
+  set -- $raw
+  ts="$1"; ttl="$2"
+  case "$ttl" in ''|*[!0-9]*) return 1 ;; esac
+  epoch="$(sl_epoch_normalize "$ts")" || return 1
+  rem=$(( epoch + ttl - $(_tip_now) ))
+  # O multiplicador de gravação sai da janela contratada, que o cache.sh detecta
+  # do payload: 2× para uma hora, 1,25× para cinco minutos. O mesmo usuário
+  # alterna entre as duas contas, então isto não pode ser configuração.
+  if [ "$ttl" -ge 3600 ]; then printf '%s 2' "$rem"; else printf '%s 1.25' "$rem"; fi
+}
+
+# Contexto grande o bastante para a regravação doer.
+_tip_ctx_big() {
+  case "$SL_CTX_USED" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$SL_CTX_USED" -ge "$SL_TIP_CTX_FLOOR" ]
+}
+
+# O prefixo expirou: a próxima troca regrava o contexto inteiro.
+#
+# A frase não diz "esfriou" — o `☁ 100%·cold` da linha de cima já diz, com
+# formato e cor próprios. Repetir custava dez colunas e estourava os 80, que é a
+# mesma lição que as datas ensinaram nas dicas de projeção.
+_tip_src_cache_cold() {
+  local st rem w cents money
+  _tip_ctx_big || return 1
+  st="$(_tip_cache_state)" || return 1
+  set -- $st
+  rem="$1"; w="$2"
+  [ "$rem" -le 0 ] || return 1
+
+  money=""
+  if cents="$(_tip_regrave_cost "$SL_CTX_USED" "$w")"; then
+    money="$(awk -v c="$cents" 'BEGIN{ printf " (~$%.2f)", c/100 }')"
+  fi
+
+  printf 'cold\tDica do cache: regravar %s custa %s×%s — vale a partir de %s trocas' \
+    "$(sl_fmt_tokens "$SL_CTX_USED")" "$w" "$money" "$(_tip_breakeven "$w")"
+}
+
+# O prefixo está por expirar, e ainda dá para aproveitá-lo.
+#
+# A chave é `warn` durante a janela inteira, e não o número de segundos: uma
+# chave que mudasse a cada repaint faria a dica renascer sessenta vezes num
+# minuto. O texto mostra o tempo correndo; o estado é um só.
+_tip_src_cache_expiring() {
+  local st rem w
+  _tip_ctx_big || return 1
+  st="$(_tip_cache_state)" || return 1
+  set -- $st
+  rem="$1"; w="$2"
+  [ "$rem" -gt 0 ] || return 1
+  [ "$rem" -le "$SL_TIP_CACHE_SOON" ] || return 1
+
+  printf 'warn\tDica do cache: %ss até esfriar — mandar algo agora aproveita %s gravados' \
+    "$rem" "$(sl_fmt_tokens "$SL_CTX_USED")"
 }
