@@ -324,3 +324,60 @@ tip_width() {
   run _tip_src_flow ""
   [ "$output" = "$(printf '0:1755900000\tDica do Flow: →116%% é projeção, não gasto — cortar 18%% do ritmo evita a trava')" ]
 }
+
+# ── preço derivado do custo real ──
+
+mk_usage_transcript() {   # <input> <read> <write> <output>
+  local f="$BATS_TEST_TMPDIR/usage.jsonl"
+  printf '{"type":"assistant","message":{"usage":{"input_tokens":%s,"cache_read_input_tokens":%s,"cache_creation_input_tokens":%s,"output_tokens":%s}}}\n' \
+    "$1" "$2" "$3" "$4" > "$f"
+  export SL_TRANSCRIPT="$f"
+}
+
+@test "usage totals add up the transcript" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  run _tip_usage_totals
+  [ "$output" = "870 106711624 2938536 639464" ]
+}
+
+@test "breakeven is three exchanges on a one hour ttl" {
+  run _tip_breakeven 2
+  [ "$output" = "3" ]
+}
+
+@test "breakeven is two exchanges on a five minute ttl" {
+  run _tip_breakeven 2
+  [ "$output" = "3" ]
+  run _tip_breakeven 1.25
+  [ "$output" = "2" ]
+}
+
+@test "regrave cost matches the price derived from real aggregates" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88
+  # den = 870 + 0.1*106711624 + 2*2938536 + 5*639464 = 19746424
+  # P_in = 88/19746424 ; 393000 tokens a 2x  =>  ~350 centavos
+  run _tip_regrave_cost 393000 2
+  [ "$output" -ge 340 ]
+  [ "$output" -le 360 ]
+}
+
+@test "regrave cost gives up when the session cost is zero" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88
+  run _tip_regrave_cost 393000 2
+  [ "$status" -eq 0 ]
+  SL_COST=0
+  run _tip_regrave_cost 393000 2
+  [ "$status" -ne 0 ]
+}
+
+@test "regrave cost gives up without a transcript" {
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=88
+  run _tip_regrave_cost 393000 2
+  [ "$status" -eq 0 ]
+  export SL_TRANSCRIPT="$BATS_TEST_TMPDIR/nao-existe.jsonl"
+  run _tip_regrave_cost 393000 2
+  [ "$status" -ne 0 ]
+}

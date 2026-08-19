@@ -377,3 +377,84 @@ _tip_src_projection() {
 _tip_src_flow() { _tip_src_projection flow "$1"; }
 _tip_src_7d()   { _tip_src_projection 7d   "$1"; }
 _tip_src_5h()   { _tip_src_projection 5h   "$1"; }
+
+# ── Quanto custa regravar o prefixo ──
+#
+# O plugin não conhece tabela de preços, e não deve conhecer: ela envelheceria a
+# cada lançamento, e mentiria para quem passa por um gateway corporativo com
+# preço próprio. O preço sai do custo que o Claude Code já reporta.
+#
+# O caminho ingênuo — custo total sobre tokens totais — foi medido e recusado.
+# Numa sessão real de 435 trocas ele dá $0,90 por milhão contra $5,00 de
+# verdade: erro de 5,5×. A causa é estrutural, não amostral: 106M de tokens
+# lidos do cache a 0,1× dominam a CONTAGEM e quase não pesam no CUSTO, e a média
+# desaba. A dica subestimaria a regravação em cinco vezes — pior que não existir,
+# porque erra para menos justamente no número que deveria assustar.
+#
+# O que funciona é uma invariante: output custa 5× input em toda a linha Claude
+# — Fable 10/50, Opus 5/25, Sonnet 3/15, Haiku 1/5. Com ela sobra uma incógnita:
+#
+#   custo = P_in × (input + 0,1·read + W·write + 5·output)
+#
+# Medido contra os mesmos agregados: erro de 0% com W=1,25 e 11% com W=2.
+# Aceitável para um número que aparece com `~` na frente.
+
+_tip_usage_totals_compute() {
+  # `-Rrs` linha a linha com `fromjson?`, e não `-s`: a última linha do
+  # transcript da sessão em curso pode estar pela metade no instante da leitura,
+  # e `jq -s` recusaria o arquivo inteiro por causa dela. Mesmo motivo de
+  # _cache_probe_compute.
+  sl_jq -Rrs '
+    [ split("\n")[] | fromjson?
+      | select(.type == "assistant" and .message.usage != null)
+      | .message.usage ] as $u
+    | if ($u | length) == 0 then empty
+      else "\([$u[].input_tokens // 0] | add) \([$u[].cache_read_input_tokens // 0] | add) \([$u[].cache_creation_input_tokens // 0] | add) \([$u[].output_tokens // 0] | add)"
+      end' "$1" 2>/dev/null
+}
+
+# Os quatro agregados do transcript, cacheados por mtime: a varredura é do
+# arquivo inteiro, e o resultado só muda quando ele cresce.
+_tip_usage_totals() {
+  local key out
+  [ -n "$SL_TRANSCRIPT" ] || return 1
+  [ -f "$SL_TRANSCRIPT" ] || return 1
+  key="tip-usage-$(printf '%s' "$SL_TRANSCRIPT" | cksum | cut -d' ' -f1)"
+  out="$(cache_by_mtime "$key" "$SL_TRANSCRIPT" _tip_usage_totals_compute "$SL_TRANSCRIPT")"
+  [ -n "$out" ] || return 1
+  printf '%s' "$out"
+}
+
+# Quantas trocas a regravação precisa para se pagar.
+#
+#   com cache:  W + 0,1·(N−1)        sem cache:  1·N
+#
+# → 3 com TTL de uma hora, 2 com cinco minutos. Não é constante escolhida a
+# dedo: sai do W que widgets/cache.sh detecta do payload, e muda sozinha quando
+# a conta muda.
+_tip_breakeven() {
+  awk -v w="$1" 'BEGIN{
+    n = (w - 0.1) / 0.9
+    v = int(n); if (n > v) v = v + 1
+    if (v < 2) v = 2
+    printf "%d", v
+  }'
+}
+
+# Custo de regravar <tokens> tokens, em centavos. Retorna 1 quando não dá para
+# derivar — e aí a frase omite a cifra e mantém o múltiplo e as trocas, que
+# continuam verdadeiros.
+#
+# A conta vive inteira no awk: bash 3.2 só faz aritmética inteira, e aqui todo
+# fator é fracionário.
+_tip_regrave_cost() {
+  local tokens="$1" w="$2" totals
+  totals="$(_tip_usage_totals)" || return 1
+  set -- $totals
+  awk -v cost="$SL_COST" -v inp="$1" -v rd="$2" -v wr="$3" -v out="$4" \
+      -v w="$w" -v tok="$tokens" 'BEGIN{
+    den = inp + 0.1*rd + w*wr + 5*out
+    if (cost <= 0 || den <= 0 || tok <= 0) exit 1
+    printf "%.0f", tok * w * (cost/den) * 100
+  }'
+}
