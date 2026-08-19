@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/nidelson/claude-code-statusline/compare/v0.5.0...v0.5.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* lock órfão travava a busca do Flow para sempre ([#28](https://github.com/nidelson/claude-code-statusline/issues/28)) ([2f72b2d](https://github.com/nidelson/claude-code-statusline/commit/2f72b2da80f8cc491020f3f764bef73dabf876d9))
+
 ## [0.5.0](https://github.com/nidelson/claude-code-statusline/compare/v0.4.0...v0.5.0) (2026-08-19)
 
 
