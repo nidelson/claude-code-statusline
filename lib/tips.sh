@@ -54,3 +54,152 @@ _tip_step() {
   [ "$s" -gt 3 ] && s=3
   printf '%s' "$s"
 }
+
+# ── O que já foi dito, e em que turno ──
+#
+# O fato observado não é guardado: ele é recalculado das fontes a cada repaint.
+# O que precisa de memória é só o que já foi anunciado — o degrau, para a regra
+# de piora; a data de bloqueio, para a regra dos 10%; e o turno, para saber se a
+# dica ainda é a mesma da última vez que alguém olhou.
+
+_tip_state_file() {
+  printf '%s/tip-state.tsv' "$SL_CACHE_DIR"
+}
+
+# O turno corrente, lido do transcript.
+#
+# `promptId` identifica o TURNO, não a mensagem: tudo que o Claude gera enquanto
+# trabalha — inclusive os `tool_result`, que são mensagens `user` — herda o
+# promptId do prompt que os originou. É por isso que ele serve e uma contagem de
+# mensagens não: medido numa sessão real, 84 entradas `"type":"user"` para 8
+# prompts de verdade, porque 71 delas eram tool_result. Errar por um fator de
+# seis aqui significaria a dica sumindo enquanto o usuário está fora.
+#
+# `tail -n`, e não `tail -c`: o fim de um transcript costuma ser `attachment`,
+# que não carrega o campo, e um corte por bytes volta vazio. Quarenta linhas
+# cobrem a folga e custam 10 ms num transcript de 2,9 MB.
+_tip_prompt_id() {
+  local id
+  [ -n "$SL_TRANSCRIPT" ] || return 1
+  [ -f "$SL_TRANSCRIPT" ] || return 1
+  id="$(tail -n 40 "$SL_TRANSCRIPT" 2>/dev/null \
+        | grep -o '"promptId":"[^"]*"' | tail -1)"
+  [ -n "$id" ] || return 1
+  id="${id##*:\"}"
+  printf '%s' "${id%\"}"
+}
+
+# Os três campos de uma fonte, separados por espaço.
+#
+# O arquivo é TSV, mas a saída não: nenhum dos valores contém espaço, e um
+# retorno separado por espaço deixa o chamador usar `set --` em vez de fatiar
+# string com TAB literal — que em bash 3.2 é fonte de erro silencioso.
+_tip_state_get() {
+  local src="$1" file f step blocked pid
+  file="$(_tip_state_file)"
+  [ -r "$file" ] || return 1
+  # `|| [ -n "$f" ]` cobre arquivo sem quebra final: read devolve não-zero ao
+  # encontrar EOF mesmo tendo preenchido as variáveis.
+  while IFS="$(printf '\t')" read -r f step blocked pid || [ -n "$f" ]; do
+    [ "$f" = "$src" ] || continue
+    [ -n "$pid" ] || continue
+    printf '%s %s %s' "$step" "$blocked" "$pid"
+    return 0
+  done < "$file"
+  return 1
+}
+
+# Regrava a linha de uma fonte, preservando as outras.
+#
+# Escreve em temporário e move: dois terminais repintando ao mesmo tempo
+# poderiam ler o arquivo no meio de uma reescrita in-place.
+_tip_state_put() {
+  local src="$1" step="$2" blocked="$3" pid="$4" file tmp line f
+  file="$(_tip_state_file)"
+  tmp="$file.$$"
+  mkdir -p "$SL_CACHE_DIR" 2>/dev/null || return 0
+  : > "$tmp" 2>/dev/null || return 0
+  if [ -r "$file" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      f="${line%%	*}"
+      [ "$f" = "$src" ] && continue
+      printf '%s\n' "$line"
+    done < "$file" >> "$tmp"
+  fi
+  printf '%s\t%s\t%s\t%s\n' "$src" "$step" "$blocked" "$pid" >> "$tmp"
+  mv -f "$tmp" "$file" 2>/dev/null || rm -f "$tmp" 2>/dev/null
+}
+
+# Esquece o que uma fonte disse. Arquivo que fica vazio é apagado: ausência é o
+# estado normal, e é o que faz o widget custar um `[ -f ]` no caso comum.
+_tip_state_drop() {
+  local src="$1" file tmp line f
+  file="$(_tip_state_file)"
+  [ -r "$file" ] || return 0
+  tmp="$file.$$"
+  : > "$tmp" 2>/dev/null || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    f="${line%%	*}"
+    [ "$f" = "$src" ] && continue
+    printf '%s\n' "$line"
+  done < "$file" >> "$tmp"
+  if [ -s "$tmp" ]; then
+    mv -f "$tmp" "$file" 2>/dev/null || rm -f "$tmp" 2>/dev/null
+  else
+    rm -f "$tmp" "$file" 2>/dev/null
+  fi
+}
+
+# Decide se esta fonte fala agora, e registra o que foi dito.
+#
+# Três motivos para falar: é a primeira vez; a projeção subiu de degrau; a data
+# de bloqueio antecipou mais de 10% do que faltava. Fora isso a dica continua na
+# tela enquanto for o mesmo turno, e cala no próximo — que é o que a faz esperar
+# por quem saiu para almoçar, em vez de morrer no relógio.
+#
+# A regra dos 10% é relativa de propósito: antecipar duas horas numa trava que
+# estava a três dias não muda decisão nenhuma; as mesmas duas horas numa que
+# estava a seis mudam tudo.
+#
+# Transcript ilegível vira o turno `-`, que é estável entre repaints: a dica
+# fica na tela em vez de piscar. Falhar mostrando é melhor que falhar calado,
+# porque o `🔒` da linha de cima continua verdadeiro de qualquer jeito.
+_tip_should_show() {
+  local src="$1" proj="$2" blocked="$3" now="$4"
+  local step prev pstep pblocked ppid pid margin
+
+  step="$(_tip_step "$proj")" || return 1
+  pid="$(_tip_prompt_id)" || pid="-"
+
+  if ! prev="$(_tip_state_get "$src")"; then
+    _tip_state_put "$src" "$step" "$blocked" "$pid"
+    return 0
+  fi
+
+  set -- $prev
+  pstep="$1"; pblocked="$2"; ppid="$3"
+  case "$pstep"    in ''|*[!0-9]*) pstep=0 ;;    esac
+  case "$pblocked" in ''|*[!0-9]*) pblocked=0 ;; esac
+
+  if [ "$step" -gt "$pstep" ]; then
+    _tip_state_put "$src" "$step" "$blocked" "$pid"
+    return 0
+  fi
+
+  case "$blocked" in
+    ''|*[!0-9]*) ;;
+    *)
+      if [ "$pblocked" -gt 0 ] && [ "$blocked" -lt "$pblocked" ]; then
+        margin=$(( (pblocked - now) / 10 ))
+        [ "$margin" -ge 0 ] || margin=0
+        if [ $(( pblocked - blocked )) -gt "$margin" ]; then
+          _tip_state_put "$src" "$step" "$blocked" "$pid"
+          return 0
+        fi
+      fi
+      ;;
+  esac
+
+  [ "$pid" = "$ppid" ] || return 1
+  return 0
+}
