@@ -802,6 +802,35 @@ explicaria nada.
 parado`. E ela se cala quando a trava cai a menos de quinze minutos do reset —
 travar quatro minutos antes de a janela virar não vale interromper ninguém.
 
+**As dicas de cache** vêm da mesma linha, e respondem outra pergunta:
+
+```
+Dica do cache: regravar 393k custa 2× (~$3.50) — vale a partir de 3 trocas
+Dica do cache: 45s até esfriar — mandar algo agora aproveita 393k gravados
+```
+
+Quando o prefixo expira, a próxima troca regrava o contexto inteiro. Ler do
+cache custa 0,1× o preço de input; regravar custa 1,25× numa conta de cinco
+minutos e 2× numa de uma hora — ou seja, entre **12,5× e 20×** o que custaria
+lê-los quentes. O widget `cache` já detecta qual é a sua janela, então o número
+não é configuração.
+
+Daí sai também o ponto de equilíbrio: `W + 0,1·(N−1)` contra `1·N` dá **3
+trocas** numa conta de uma hora e **2** numa de cinco minutos. Abaixo disso,
+`/clear` sai mais barato que pagar a regravação — que é a decisão que a dica
+existe para informar.
+
+**O valor em dólar é derivado, não tabelado.** O plugin não carrega preços: eles
+envelheceriam a cada lançamento e mentiriam para quem passa por um gateway
+corporativo. Ele resolve `custo = P_in × (input + 0,1·read + W·write +
+5·output)` sobre os agregados da sessão, usando o fato de que output custa 5×
+input em toda a linha Claude. Erro medido contra uma sessão real: 0–11%. Quando
+o custo não é derivável, a cifra some e o múltiplo fica.
+
+As duas só falam com **contexto acima de 100k** — esfriar com 12k custa
+centavos, e uma dica que aparecesse aí ensinaria a ignorar a que aparece com
+393k. E nenhuma delas diz "esfriou": o `☁ 100%·cold` da linha de cima já diz.
+
 **Precisa ficar sozinho na sua linha.** Quando duas fontes projetam bloqueio ao
 mesmo tempo, o widget emite duas linhas; dividindo a linha com outro widget,
 isso quebraria a montagem de separadores. A configuração padrão já o põe assim:
