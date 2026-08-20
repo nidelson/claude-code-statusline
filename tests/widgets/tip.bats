@@ -36,8 +36,8 @@ EOF
   SL_CONFIG_RAW="{\"widgets\":{\"flow\":{\"cache\":\"$FLOW\"}}}"
 }
 
-FLOW_TIP="⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava"
-SEVEN_TIP="⎿ Janela 7d: →134% é projeção, não gasto — cortar 31% do ritmo evita"
+FLOW_TIP="⎿ Flow: →116% é projeção, não gasto — reduzir 18% do ritmo evita a trava"
+SEVEN_TIP="⎿ Janela 7d: →134% é projeção, não gasto — reduzir 31% do ritmo evita"
 
 @test "renders the flow tip when a block is projected" {
   write_flow 25 116.4 1755900000
@@ -72,7 +72,7 @@ SEVEN_TIP="⎿ Janela 7d: →134% é projeção, não gasto — cortar 31% do ri
   [ "$output" = "" ]
   write_flow 25 160.0 1755900000
   run widget_tip_render
-  [ "$output" = "⎿ Flow: →160% é projeção, não gasto — cortar 44% do ritmo evita a trava" ]
+  [ "$output" = "⎿ Flow: →160% é projeção, não gasto — reduzir 44% do ritmo evita a trava" ]
 }
 
 @test "renders one line per source when two of them fire" {

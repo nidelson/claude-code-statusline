@@ -217,21 +217,21 @@ tip"
   write_flow 25 116 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — reduzir 18% do ritmo evita a trava" ]
 }
 
 @test "seven day phrase names its own window" {
   fake_forecast "crit 134 1755870000"
   SL_7D_PCT=23 ; SL_7D_RESET=1756000000 ; SL_NOW=1755000000
   run _tip_src_7d ""
-  [ "${output#*	}" = "⎿ Janela 7d: →134% é projeção, não gasto — cortar 31% do ritmo evita" ]
+  [ "${output#*	}" = "⎿ Janela 7d: →134% é projeção, não gasto — reduzir 31% do ritmo evita" ]
 }
 
 @test "five hour phrase trades the reading fix for the length of the pause" {
   fake_forecast "crit 118 1755897000"
   SL_5H_PCT=60 ; SL_5H_RESET=1755900000 ; SL_NOW=1755000000
   run _tip_src_5h ""
-  [ "${output#*	}" = "⎿ Janela 5h: →118% é projeção — cortar 31% evita 50m parado" ]
+  [ "${output#*	}" = "⎿ Janela 5h: →118% é projeção — reduzir 31% evita 50m parado" ]
 }
 
 @test "five hour phrase stays silent when the pause is shorter than the floor" {
@@ -264,26 +264,63 @@ tip_width() {
   printf '%s' "$1" | LC_ALL=C tr -d '\200-\277' | LC_ALL=C wc -c | tr -d ' \n'
 }
 
-@test "every phrase fits in eighty columns" {
+# A frase mais larga que o conjunto inteiro de fontes consegue produzir.
+#
+# Cada fonte entra no SEU pior caso, e não num estado comum: a projeção fica
+# mais larga com três dígitos, e a de cache com a conta de cinco minutos, porque
+# `1.25×` gasta três colunas a mais que `2×`. Um contexto de 1.0M cobrado à
+# tabela do Fable — $10 por milhão de input — é o que leva a cifra a dois
+# dígitos, e é o pior caso que dá para pagar de verdade.
+#
+# `fake_probe` e `mk_usage_transcript` estão definidos mais abaixo: o bats
+# carrega o arquivo inteiro antes de rodar qualquer teste.
+tip_widest_phrase() {
   local widest=0 n
   SL_NOW=1755000000
-  write_flow 25 116 1755900000
+
+  write_flow 25 999 1755900000
   run _tip_src_flow ""
   n="$(tip_width "${output#*	}")" ; [ "$n" -gt "$widest" ] && widest="$n"
+
   SL_7D_PCT=23 ; SL_7D_RESET=1756000000
-  fake_forecast "crit 134 1755870000"
+  fake_forecast "crit 999 1755870000"
   run _tip_src_7d ""
   n="$(tip_width "${output#*	}")" ; [ "$n" -gt "$widest" ] && widest="$n"
+
   SL_5H_PCT=60 ; SL_5H_RESET=1755900000
   fake_forecast "crit 118 1755897000"
   run _tip_src_5h ""
   n="$(tip_width "${output#*	}")" ; [ "$n" -gt "$widest" ] && widest="$n"
-  # Uma projeção de três dígitos é o pior caso de largura que a fonte produz.
-  fake_forecast "crit 999 1755870000"
-  run _tip_src_7d ""
+
+  mk_usage_transcript 870 106711624 2938536 639464
+  SL_COST=175 ; SL_CTX_USED=1000000
+  fake_probe 1754990000 300
+  run _tip_src_cache_cold ""
   n="$(tip_width "${output#*	}")" ; [ "$n" -gt "$widest" ] && widest="$n"
+
+  fake_probe 1754996445 3600
+  run _tip_src_cache_expiring ""
+  n="$(tip_width "${output#*	}")" ; [ "$n" -gt "$widest" ] && widest="$n"
+
+  printf '%s' "$widest"
+}
+
+@test "every phrase fits in eighty columns" {
+  local widest
+  widest="$(tip_widest_phrase)"
   # Contraprova: sem ela, funções ausentes deixam widest em zero e o teste passa
   # afirmando que frases inexistentes cabem em 80 colunas.
+  [ "$widest" -ge 60 ]
+  [ "$widest" -le 80 ]
+}
+
+# Sem ícones o rótulo cresce seis colunas — `Dica do cache:` contra `⎿ Cache:` —
+# e é essa variante, não a com glifo, que chega perto do limite. Foi ela que
+# reprovou "mensagens" no lugar de "respostas": 81 colunas aqui contra 75 lá.
+@test "every phrase fits in eighty columns without icons" {
+  local widest
+  SL_CONFIG_ICONS=0
+  widest="$(tip_widest_phrase)"
   [ "$widest" -ge 60 ]
   [ "$widest" -le 80 ]
 }
@@ -322,7 +359,7 @@ tip_width() {
   write_flow 25 116.4 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "$output" = "$(printf '0:1755900000\t⎿ Flow: →116%% é projeção, não gasto — cortar 18%% do ritmo evita a trava')" ]
+  [ "$output" = "$(printf '0:1755900000\t⎿ Flow: →116%% é projeção, não gasto — reduzir 18%% do ritmo evita a trava')" ]
 }
 
 # ── preço derivado do custo real ──
@@ -399,7 +436,7 @@ tip"
   fake_probe 1754990000 3600
   run _tip_src_cache_cold ""
   [[ "$output" == *"⎿ Cache: regravar 393k custa 2×"* ]]
-  [[ "$output" == *"vale a partir de 3 trocas"* ]]
+  [[ "$output" == *"compensa em 3 respostas"* ]]
 }
 
 @test "cache cold stays quiet below the context floor" {
@@ -442,7 +479,7 @@ tip"
   fake_probe 1754990000 300
   run _tip_src_cache_cold ""
   [[ "$output" == *"custa 1.25×"* ]]
-  [[ "$output" == *"vale a partir de 2 trocas"* ]]
+  [[ "$output" == *"compensa em 2 respostas"* ]]
 }
 
 @test "cache expiring speaks inside the last minute" {
@@ -475,22 +512,6 @@ tip"
   [ "$status" -ne 0 ]
 }
 
-@test "cache phrases fit in eighty columns" {
-  mk_usage_transcript 870 106711624 2938536 639464
-  SL_COST=88 ; SL_CTX_USED=1000000 ; SL_NOW=1755000000
-  local w1 w2
-  fake_probe 1754990000 3600
-  run _tip_src_cache_cold ""
-  w1="$(tip_width "${output#*	}")"
-  fake_probe 1754996445 3600
-  run _tip_src_cache_expiring ""
-  w2="$(tip_width "${output#*	}")"
-  [ "$w1" -ge 50 ]
-  [ "$w2" -ge 50 ]
-  [ "$w1" -le 80 ]
-  [ "$w2" -le 80 ]
-}
-
 # ── o prefixo da linha de dica ──
 
 @test "label uses the note glyph when icons are on" {
@@ -513,7 +534,7 @@ tip"
   write_flow 25 116 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — reduzir 18% do ritmo evita a trava" ]
 }
 
 @test "flow phrase spells out the word with icons off" {
@@ -521,7 +542,7 @@ tip"
   write_flow 25 116 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "${output#*	}" = "Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+  [ "${output#*	}" = "Dica do Flow: →116% é projeção, não gasto — reduzir 18% do ritmo evita a trava" ]
 }
 
 @test "cache phrase carries the note glyph too" {
@@ -530,5 +551,5 @@ tip"
   SL_COST=88 ; SL_CTX_USED=393000 ; SL_NOW=1755000000
   fake_probe 1754990000 3600
   run _tip_src_cache_cold ""
-  [ "${output#*	}" = "⎿ Cache: regravar 393k custa 2× (~\$3.50) — vale a partir de 3 trocas" ]
+  [ "${output#*	}" = "⎿ Cache: regravar 393k custa 2× (~\$3.50) — compensa em 3 respostas" ]
 }

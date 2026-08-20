@@ -766,7 +766,7 @@ comportamento de quem não pediu esse widget.
 Explica um bloqueio de cota projetado, e diz quanto o ritmo precisa cair.
 
 ```
-⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava
+⎿ Flow: →116% é projeção, não gasto — reduzir 18% do ritmo evita a trava
 ```
 
 Este widget não mostra dado novo — ele ensina a ler o que os outros já mostram.
@@ -779,7 +779,7 @@ permanente.
 **Nada no resto da barra muda.** Nenhum widget é alterado, nenhum campo sai da
 linha. O `tip` só acrescenta.
 
-**Quanto cortar** sai de `(proj − 100) / (proj − used)`, que elimina o tempo e o
+**Quanto reduzir** sai de `(proj − 100) / (proj − used)`, que elimina o tempo e o
 ritmo da conta e serve às três fontes. O número está aí porque a intuição erra
 feio: `→116%` sugere "corte pela metade", quando o corte real é 18%. Uma dica
 que só assusta é pior que nenhuma.
@@ -798,14 +798,14 @@ configuração não gera dica — explicar um número que ninguém está vendo n
 explicaria nada.
 
 **A janela de 5h fala diferente**, porque ali o custo não é um bloqueio de dias,
-é uma pausa: `⎿ Janela 5h: →118% é projeção — cortar 31% evita 50m
+é uma pausa: `⎿ Janela 5h: →118% é projeção — reduzir 31% evita 50m
 parado`. E ela se cala quando a trava cai a menos de quinze minutos do reset —
 travar quatro minutos antes de a janela virar não vale interromper ninguém.
 
 **As dicas de cache** vêm da mesma linha, e respondem outra pergunta:
 
 ```
-⎿ Cache: regravar 393k custa 2× (~$3.50) — vale a partir de 3 trocas
+⎿ Cache: regravar 393k custa 2× (~$3.50) — compensa em 3 respostas
 ⎿ Cache: 45s até esfriar — mandar algo agora aproveita 393k gravados
 ```
 
@@ -816,9 +816,15 @@ lê-los quentes. O widget `cache` já detecta qual é a sua janela, então o nú
 não é configuração.
 
 Daí sai também o ponto de equilíbrio: `W + 0,1·(N−1)` contra `1·N` dá **3
-trocas** numa conta de uma hora e **2** numa de cinco minutos. Abaixo disso,
-`/clear` sai mais barato que pagar a regravação — que é a decisão que a dica
-existe para informar.
+leituras do prefixo** numa conta de uma hora e **2** numa de cinco minutos.
+Abaixo disso, `/clear` sai mais barato que pagar a regravação — que é a decisão
+que a dica existe para informar.
+
+Na tela o número aparece como *respostas*, e não como leituras: leitura é
+vocabulário da API, e ninguém a vê acontecer. A tradução erra para o lado
+seguro — cada resposta vale ao menos uma leitura, e as que chamam ferramenta
+valem várias —, então a dica pede mais paciência do que a conta exige, nunca
+menos.
 
 **O valor em dólar é derivado, não tabelado.** O plugin não carrega preços: eles
 envelheceriam a cada lançamento e mentiriam para quem passa por um gateway

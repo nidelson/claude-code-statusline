@@ -373,7 +373,7 @@ _tip_src_projection() {
     [ "$gap" -ge "$SL_TIP_5H_MIN_PAUSE" ] || return 1
     pause="$(sl_fmt_countdown "$gap")"
     if [ -n "$cut" ]; then
-      printf '%s\t%s →%s%% é projeção — cortar %s%% evita %s parado' \
+      printf '%s\t%s →%s%% é projeção — reduzir %s%% evita %s parado' \
         "$key" "$(_tip_label "Janela 5h:" "Dica da janela 5h:")" "$proj" "$cut" "$pause"
     else
       printf '%s\t%s →%s%% é projeção — %s parado se o ritmo seguir' \
@@ -392,10 +392,10 @@ _tip_src_projection() {
   # Flow, cujo rótulo é cinco colunas mais curto, e estouraria a do 7d.
   if [ -n "$cut" ]; then
     if [ "$src" = "flow" ]; then
-      printf '%s\t%s →%s%% é projeção, não gasto — cortar %s%% do ritmo evita a trava' \
+      printf '%s\t%s →%s%% é projeção, não gasto — reduzir %s%% do ritmo evita a trava' \
         "$key" "$label" "$proj" "$cut"
     else
-      printf '%s\t%s →%s%% é projeção, não gasto — cortar %s%% do ritmo evita' \
+      printf '%s\t%s →%s%% é projeção, não gasto — reduzir %s%% do ritmo evita' \
         "$key" "$label" "$proj" "$cut"
     fi
   else
@@ -455,13 +455,23 @@ _tip_usage_totals() {
   printf '%s' "$out"
 }
 
-# Quantas trocas a regravação precisa para se pagar.
+# Quantas leituras do prefixo a regravação precisa para se pagar.
 #
 #   com cache:  W + 0,1·(N−1)        sem cache:  1·N
 #
 # → 3 com TTL de uma hora, 2 com cinco minutos. Não é constante escolhida a
 # dedo: sai do W que widgets/cache.sh detecta do payload, e muda sozinha quando
 # a conta muda.
+#
+# A frase na tela diz "respostas", e não "leituras": leitura é vocabulário da
+# API, e ninguém a vê acontecer. A tradução erra para o lado seguro — cada
+# resposta vale ao menos uma leitura, e as que chamam ferramenta valem várias,
+# então a dica pede mais paciência do que a conta exige, nunca menos.
+#
+# "Mensagens" faria o contrário, e foi por isso recusada: ancora no que a
+# pessoa digita, e um único prompt que dispare quatro ferramentas já paga a
+# regravação sozinho. A dica mandaria dar /clear numa hora em que continuar
+# era mais barato.
 _tip_breakeven() {
   awk -v w="$1" 'BEGIN{
     n = (w - 0.1) / 0.9
@@ -472,7 +482,7 @@ _tip_breakeven() {
 }
 
 # Custo de regravar <tokens> tokens, em centavos. Retorna 1 quando não dá para
-# derivar — e aí a frase omite a cifra e mantém o múltiplo e as trocas, que
+# derivar — e aí a frase omite a cifra e mantém o múltiplo e a contagem, que
 # continuam verdadeiros.
 #
 # A conta vive inteira no awk: bash 3.2 só faz aritmética inteira, e aqui todo
@@ -550,7 +560,7 @@ _tip_src_cache_cold() {
     money="$(awk -v c="$cents" 'BEGIN{ printf " (~$%.2f)", c/100 }')"
   fi
 
-  printf 'cold\t%s regravar %s custa %s×%s — vale a partir de %s trocas' \
+  printf 'cold\t%s regravar %s custa %s×%s — compensa em %s respostas' \
     "$(_tip_label "Cache:" "Dica do cache:")" \
     "$(sl_fmt_tokens "$SL_CTX_USED")" "$w" "$money" "$(_tip_breakeven "$w")"
 }
