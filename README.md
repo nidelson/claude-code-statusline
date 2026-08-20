@@ -766,7 +766,7 @@ comportamento de quem não pediu esse widget.
 Explica um bloqueio de cota projetado, e diz quanto o ritmo precisa cair.
 
 ```
-⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava
+⎿ Flow: →116% é projeção, não gasto — reduzir 18% do ritmo evita a trava
 ```
 
 Este widget não mostra dado novo — ele ensina a ler o que os outros já mostram.
@@ -779,7 +779,7 @@ permanente.
 **Nada no resto da barra muda.** Nenhum widget é alterado, nenhum campo sai da
 linha. O `tip` só acrescenta.
 
-**Quanto cortar** sai de `(proj − 100) / (proj − used)`, que elimina o tempo e o
+**Quanto reduzir** sai de `(proj − 100) / (proj − used)`, que elimina o tempo e o
 ritmo da conta e serve às três fontes. O número está aí porque a intuição erra
 feio: `→116%` sugere "corte pela metade", quando o corte real é 18%. Uma dica
 que só assusta é pior que nenhuma.
@@ -798,7 +798,7 @@ configuração não gera dica — explicar um número que ninguém está vendo n
 explicaria nada.
 
 **A janela de 5h fala diferente**, porque ali o custo não é um bloqueio de dias,
-é uma pausa: `⎿ Janela 5h: →118% é projeção — cortar 31% evita 50m
+é uma pausa: `⎿ Janela 5h: →118% é projeção — reduzir 31% evita 50m
 parado`. E ela se cala quando a trava cai a menos de quinze minutos do reset —
 travar quatro minutos antes de a janela virar não vale interromper ninguém.
 

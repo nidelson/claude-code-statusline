@@ -217,21 +217,21 @@ tip"
   write_flow 25 116 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — reduzir 18% do ritmo evita a trava" ]
 }
 
 @test "seven day phrase names its own window" {
   fake_forecast "crit 134 1755870000"
   SL_7D_PCT=23 ; SL_7D_RESET=1756000000 ; SL_NOW=1755000000
   run _tip_src_7d ""
-  [ "${output#*	}" = "⎿ Janela 7d: →134% é projeção, não gasto — cortar 31% do ritmo evita" ]
+  [ "${output#*	}" = "⎿ Janela 7d: →134% é projeção, não gasto — reduzir 31% do ritmo evita" ]
 }
 
 @test "five hour phrase trades the reading fix for the length of the pause" {
   fake_forecast "crit 118 1755897000"
   SL_5H_PCT=60 ; SL_5H_RESET=1755900000 ; SL_NOW=1755000000
   run _tip_src_5h ""
-  [ "${output#*	}" = "⎿ Janela 5h: →118% é projeção — cortar 31% evita 50m parado" ]
+  [ "${output#*	}" = "⎿ Janela 5h: →118% é projeção — reduzir 31% evita 50m parado" ]
 }
 
 @test "five hour phrase stays silent when the pause is shorter than the floor" {
@@ -359,7 +359,7 @@ tip_widest_phrase() {
   write_flow 25 116.4 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "$output" = "$(printf '0:1755900000\t⎿ Flow: →116%% é projeção, não gasto — cortar 18%% do ritmo evita a trava')" ]
+  [ "$output" = "$(printf '0:1755900000\t⎿ Flow: →116%% é projeção, não gasto — reduzir 18%% do ritmo evita a trava')" ]
 }
 
 # ── preço derivado do custo real ──
@@ -534,7 +534,7 @@ tip"
   write_flow 25 116 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+  [ "${output#*	}" = "⎿ Flow: →116% é projeção, não gasto — reduzir 18% do ritmo evita a trava" ]
 }
 
 @test "flow phrase spells out the word with icons off" {
@@ -542,7 +542,7 @@ tip"
   write_flow 25 116 1755900000
   SL_NOW=1755000000
   run _tip_src_flow ""
-  [ "${output#*	}" = "Dica do Flow: →116% é projeção, não gasto — cortar 18% do ritmo evita a trava" ]
+  [ "${output#*	}" = "Dica do Flow: →116% é projeção, não gasto — reduzir 18% do ritmo evita a trava" ]
 }
 
 @test "cache phrase carries the note glyph too" {

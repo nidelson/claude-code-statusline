@@ -373,7 +373,7 @@ _tip_src_projection() {
     [ "$gap" -ge "$SL_TIP_5H_MIN_PAUSE" ] || return 1
     pause="$(sl_fmt_countdown "$gap")"
     if [ -n "$cut" ]; then
-      printf '%s\t%s →%s%% é projeção — cortar %s%% evita %s parado' \
+      printf '%s\t%s →%s%% é projeção — reduzir %s%% evita %s parado' \
         "$key" "$(_tip_label "Janela 5h:" "Dica da janela 5h:")" "$proj" "$cut" "$pause"
     else
       printf '%s\t%s →%s%% é projeção — %s parado se o ritmo seguir' \
@@ -392,10 +392,10 @@ _tip_src_projection() {
   # Flow, cujo rótulo é cinco colunas mais curto, e estouraria a do 7d.
   if [ -n "$cut" ]; then
     if [ "$src" = "flow" ]; then
-      printf '%s\t%s →%s%% é projeção, não gasto — cortar %s%% do ritmo evita a trava' \
+      printf '%s\t%s →%s%% é projeção, não gasto — reduzir %s%% do ritmo evita a trava' \
         "$key" "$label" "$proj" "$cut"
     else
-      printf '%s\t%s →%s%% é projeção, não gasto — cortar %s%% do ritmo evita' \
+      printf '%s\t%s →%s%% é projeção, não gasto — reduzir %s%% do ritmo evita' \
         "$key" "$label" "$proj" "$cut"
     fi
   else
