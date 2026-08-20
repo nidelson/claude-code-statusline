@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/nidelson/claude-code-statusline/compare/v0.5.1...v0.5.2) (2026-08-20)
+
+
+### Bug Fixes
+
+* vocabulário das dicas ([#31](https://github.com/nidelson/claude-code-statusline/issues/31)) ([8f3a4b5](https://github.com/nidelson/claude-code-statusline/commit/8f3a4b54b706d4cea3583af3c63d73bcc2b3c59f))
+
 ## [0.5.1](https://github.com/nidelson/claude-code-statusline/compare/v0.5.0...v0.5.1) (2026-08-19)
 
 
