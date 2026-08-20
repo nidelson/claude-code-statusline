@@ -805,7 +805,7 @@ travar quatro minutos antes de a janela virar não vale interromper ninguém.
 **As dicas de cache** vêm da mesma linha, e respondem outra pergunta:
 
 ```
-⎿ Cache: regravar 393k custa 2× (~$3.50) — vale a partir de 3 trocas
+⎿ Cache: regravar 393k custa 2× (~$3.50) — compensa em 3 respostas
 ⎿ Cache: 45s até esfriar — mandar algo agora aproveita 393k gravados
 ```
 
@@ -816,9 +816,15 @@ lê-los quentes. O widget `cache` já detecta qual é a sua janela, então o nú
 não é configuração.
 
 Daí sai também o ponto de equilíbrio: `W + 0,1·(N−1)` contra `1·N` dá **3
-trocas** numa conta de uma hora e **2** numa de cinco minutos. Abaixo disso,
-`/clear` sai mais barato que pagar a regravação — que é a decisão que a dica
-existe para informar.
+leituras do prefixo** numa conta de uma hora e **2** numa de cinco minutos.
+Abaixo disso, `/clear` sai mais barato que pagar a regravação — que é a decisão
+que a dica existe para informar.
+
+Na tela o número aparece como *respostas*, e não como leituras: leitura é
+vocabulário da API, e ninguém a vê acontecer. A tradução erra para o lado
+seguro — cada resposta vale ao menos uma leitura, e as que chamam ferramenta
+valem várias —, então a dica pede mais paciência do que a conta exige, nunca
+menos.
 
 **O valor em dólar é derivado, não tabelado.** O plugin não carrega preços: eles
 envelheceriam a cada lançamento e mentiriam para quem passa por um gateway
