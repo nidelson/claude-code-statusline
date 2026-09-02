@@ -34,7 +34,7 @@ register_widget() {
     return 1
   fi
 
-  slug="$(_sl_slug "$name")"
+  slug="${name//[-:]/_}"
   eval "_W_RENDER_$slug=\$render"
   eval "_W_COLOR_$slug=\$color"
   eval "_W_DESC_$slug=\$desc"
@@ -43,14 +43,18 @@ register_widget() {
   return 0
 }
 
+# A conversão é feita aqui em vez de chamar _sl_slug porque `$( )` é um fork, e
+# estas duas são chamadas uma vez por widget por repaint. A duplicação de uma
+# expansão de três caracteres é o preço; ver o cabeçalho de lib/config.sh para o
+# que o fork custava.
 sl_widget_attr() {
   local attr="$1" name="$2" var
-  var="_W_${attr}_$(_sl_slug "$name")"
+  var="_W_${attr}_${name//[-:]/_}"
   printf '%s' "${!var}"
 }
 
 sl_widget_registered() {
-  local var="_W_RENDER_$(_sl_slug "$1")"
+  local var="_W_RENDER_${1//[-:]/_}"
   [ -n "${!var}" ]
 }
 
@@ -64,26 +68,38 @@ sl_widget_registered() {
 # Ver docs/superpowers/decisions/2026-08-08-canal-de-retorno.md.
 
 sl_render_line() {
-  local name fn color selfcolor out line="" sep
+  local name fn color selfcolor out line="" sep slug var
 
   sep=" ${SL_CONFIG_SEP:-|} "
 
   for name in "$@"; do
-    sl_widget_registered "$name" || continue
+    # Os atributos são lidos por indireção direta, sem passar por
+    # sl_widget_registered nem sl_widget_attr. Não é desconfiança das funções: é
+    # que cada `$( )` aqui é um fork, e este laço roda uma vez por widget. Eram
+    # quatro capturas por widget só para descobrir nome de função e cor.
+    slug="${name//[-:]/_}"
 
-    fn="$(sl_widget_attr RENDER "$name")"
+    var="_W_RENDER_$slug"
+    fn="${!var}"
+    [ -n "$fn" ] || continue
 
     # Widget que falha vira widget vazio. O resto da linha sobrevive.
     out="$("$fn" 2>/dev/null)" || out=""
 
     [ -n "$out" ] || continue
 
-    selfcolor="$(sl_widget_attr SELFCOLOR "$name")"
+    var="_W_SELFCOLOR_$slug"
+    selfcolor="${!var}"
     if [ "$selfcolor" != "1" ]; then
-      color="$(sl_config_widget_opt "$name" color)"
-      [ -n "$color" ] || color="$(sl_widget_attr COLOR "$name")"
+      sl_config_widget_opt_set "$name" color
+      color="$SL_CONFIG_OPT"
+      if [ -z "$color" ]; then
+        var="_W_COLOR_$slug"
+        color="${!var}"
+      fi
       if [ -n "$color" ]; then
-        out="$(sl_color "$color")$out$SL_RESET"
+        sl_color_set "$color"
+        out="$SL_COLOR$out$SL_RESET"
       fi
     fi
 
@@ -166,8 +182,28 @@ EOF
 # status do ÚLTIMO comando, e o `tr` tem sucesso mesmo quando o jq recusou a
 # entrada — lib/config.sh usa `jq -e .` justamente para validar JSON, e sem isto
 # ela aceitaria qualquer lixo como configuração válida.
+# ── E por que ele só filtra no Windows ──
+#
+# Fora do Windows o `tr` não tem `\r` nenhum para tirar, e mesmo assim custava um
+# processo por chamada de jq. Num repaint eram seis, e processo é justamente o
+# recurso caro que fazia a barra ser cancelada em voo — ver o cabeçalho de
+# lib/config.sh.
+#
+# A detecção sai de $OSTYPE, que o bash preenche sozinho: `uname` seria outro
+# fork, e a pergunta é sobre a plataforma, que não muda no meio do repaint. Se
+# ela errar, o sintoma reaparece inteiro nos runners Windows do CI, que rodam a
+# suíte sob Git Bash.
+case "$OSTYPE" in
+  msys*|cygwin*|win32*) SL_JQ_CRLF=1 ;;
+  *)                    SL_JQ_CRLF=0 ;;
+esac
+
 sl_jq() {
   local st
+  if [ "${SL_JQ_CRLF:-0}" != "1" ]; then
+    jq "$@"
+    return $?
+  fi
   jq "$@" | tr -d '\r'
   st=${PIPESTATUS[0]}
   return "$st"

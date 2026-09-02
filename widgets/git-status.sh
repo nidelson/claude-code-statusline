@@ -50,14 +50,18 @@ _git_status_count() {
 }
 
 _git_status_compute() {
-  local out header track dirty ahead behind result=""
+  local out header track dirty ahead behind result="" nl
 
   out="$(git -C "$SL_CWD" --no-optional-locks status --porcelain --branch 2>/dev/null)" || return 0
   [ -n "$out" ] || return 0
 
-  header="$(printf '%s\n' "$out" | sed -n 1p)"
+  header="${out%%$'\n'*}"
   # Tudo depois do cabeçalho é uma linha por arquivo.
-  dirty="$(printf '%s\n' "$out" | sed -n '2,$p' | wc -l | tr -d ' ')"
+  # Uma linha por arquivo depois do cabeçalho, e a captura de `out` já comeu a
+  # quebra final: o número de arquivos é o número de quebras que sobraram.
+  # Contar assim troca três processos — sed, wc e tr — por uma expansão.
+  nl="${out//[!$'\n']/}"
+  dirty="${#nl}"
 
   # Recorta o miolo dos colchetes antes de procurar as palavras. Sem esse
   # escopo, uma branch chamada "ahead" ou "behind" confundiria a busca.
@@ -100,6 +104,7 @@ widget_git_status_render() {
     ""|*[!0-9]*) ttl="$SL_GIT_STATUS_DEFAULT_TTL" ;;
   esac
 
-  key="gitstatus-$(printf '%s' "$SL_CWD" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set gitstatus "$SL_CWD"
+  key="$SL_CACHE_KEY"
   cache_by_ttl "$key" "$ttl" _git_status_compute
 }

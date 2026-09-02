@@ -449,7 +449,8 @@ _tip_usage_totals() {
   local key out
   [ -n "$SL_TRANSCRIPT" ] || return 1
   [ -f "$SL_TRANSCRIPT" ] || return 1
-  key="tip-usage-$(printf '%s' "$SL_TRANSCRIPT" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set tip-usage "$SL_TRANSCRIPT"
+  key="$SL_CACHE_KEY"
   out="$(cache_by_mtime "$key" "$SL_TRANSCRIPT" _tip_usage_totals_compute "$SL_TRANSCRIPT")"
   [ -n "$out" ] || return 1
   printf '%s' "$out"

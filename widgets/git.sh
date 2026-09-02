@@ -40,12 +40,12 @@ register_widget git \
 SL_GIT_DEFAULT_TTL=2
 
 _git_compute() {
-  local out header branch dirty
+  local out header branch dirty nl
 
   out="$(git -C "$SL_CWD" --no-optional-locks status --porcelain --branch 2>/dev/null)" || return 0
   [ -n "$out" ] || return 0
 
-  header="$(printf '%s\n' "$out" | sed -n 1p)"
+  header="${out%%$'\n'*}"
   branch="${header#\#\# }"
   # "main...origin/main [ahead 1]" vira "main". Três pontos são inequívocos: o
   # git rejeita nomes de branch com pontos consecutivos.
@@ -60,7 +60,11 @@ _git_compute() {
 
   [ -n "$branch" ] || return 0
 
-  dirty="$(printf '%s\n' "$out" | sed -n '2,$p' | wc -l | tr -d ' ')"
+  # Uma linha por arquivo depois do cabeçalho, e a captura de `out` já comeu a
+  # quebra final: o número de arquivos é o número de quebras que sobraram.
+  # Contar assim troca três processos — sed, wc e tr — por uma expansão.
+  nl="${out//[!$'\n']/}"
+  dirty="${#nl}"
 
   if [ -n "$dirty" ] && [ "$dirty" != "0" ]; then
     printf '%s ●%s' "$branch" "$dirty"
@@ -81,6 +85,7 @@ widget_git_render() {
     ""|*[!0-9]*) ttl="$SL_GIT_DEFAULT_TTL" ;;
   esac
 
-  key="git-$(printf '%s' "$SL_CWD" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set git "$SL_CWD"
+  key="$SL_CACHE_KEY"
   cache_by_ttl "$key" "$ttl" _git_compute
 }

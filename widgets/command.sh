@@ -119,7 +119,8 @@ _command_render() {
     ""|*[!0-9]*) ttl="$SL_COMMAND_DEFAULT_TTL" ;;
   esac
 
-  key="command-$(printf '%s' "$instance" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set command "$instance"
+  key="$SL_CACHE_KEY"
   out="$(cache_by_ttl "$key" "$ttl" _command_compute "$instance")"
 
   # Apara as pontas. Praticamente todo comando termina com uma quebra de linha,

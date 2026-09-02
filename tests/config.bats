@@ -128,3 +128,54 @@ JSON
   sl_config_load "$BATS_TEST_TMPDIR/absent.json"
   [ "$(sl_config_widget_opt cache label "cache:")" = "cache:" ]
 }
+
+@test "an option on a command instance survives the name mangling" {
+  # `command:<nome>` traz dois-pontos, e o nome da instância pode trazer
+  # underscore. Os dois precisam atravessar a virada para nome de variável.
+  cat > "$TMPCFG" <<'JSON'
+{"version":1,"lines":[["command:my_build"]],"widgets":{"command:my_build":{"cmd":"echo hi"}}}
+JSON
+  sl_config_load "$TMPCFG"
+  [ "$(sl_config_widget_opt command:my_build cmd)" = "echo hi" ]
+}
+
+@test "widget names that differ only by hyphen and underscore do not collide" {
+  # Trocar hífen por underscore no nome da variável, como faz _sl_slug em
+  # lib/core.sh, faria `a-b` e `a_b` apontarem para a mesma variável.
+  cat > "$TMPCFG" <<'JSON'
+{"version":1,"lines":[["a-b"]],"widgets":{"a-b":{"label":"hifen"},"a_b":{"label":"underscore"}}}
+JSON
+  sl_config_load "$TMPCFG"
+  [ "$(sl_config_widget_opt a_b label)" = "underscore" ]
+  [ "$(sl_config_widget_opt a-b label)" = "hifen" ]
+}
+
+@test "a key that is not a valid variable name falls back to the default" {
+  # Chave com ponto não forma nome de variável, e é descartada no parse.
+  #
+  # `label[0]` é o caso que de fato morde: para o bash, colchetes num nome são
+  # índice de array, e um escalar responde ao índice 0. Sem o filtro, quem
+  # pedisse `label[0]` receberia o valor de `label` — uma opção que não pediu.
+  cat > "$TMPCFG" <<'JSON'
+{"version":1,"lines":[["cache"]],"widgets":{"cache":{"label":"real","bad.key":"x"}}}
+JSON
+  sl_config_load "$TMPCFG"
+  [ "$(sl_config_widget_opt cache label)" = "real" ]
+  [ "$(sl_config_widget_opt cache bad.key "padrao")" = "padrao" ]
+  [ "$(sl_config_widget_opt cache "label[0]" "padrao")" = "padrao" ]
+}
+
+@test "reloading a config forgets options from the previous one" {
+  # As opções agora moram em variáveis, que sobrevivem ao segundo load. Sem
+  # limpeza, uma opção removida do arquivo continuaria valendo.
+  cat > "$TMPCFG" <<'JSON'
+{"version":1,"lines":[["cache"]],"widgets":{"cache":{"label":"antigo"}}}
+JSON
+  sl_config_load "$TMPCFG"
+  [ "$(sl_config_widget_opt cache label "padrao")" = "antigo" ]
+  cat > "$TMPCFG" <<'JSON'
+{"version":1,"lines":[["cache"]]}
+JSON
+  sl_config_load "$TMPCFG"
+  [ "$(sl_config_widget_opt cache label "padrao")" = "padrao" ]
+}

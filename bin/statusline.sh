@@ -21,6 +21,20 @@ SL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 input="$(cat)"
 sl_parse_stdin "$input"
+
+# O relógio do repaint é lido uma vez e vale para todos os widgets.
+#
+# SL_NOW já existia como injeção de teste — os helpers `_cache_now`, `_rf_now`,
+# `_flow_now` e `_tip_now` a consultam antes de chamar `date`. Preenchê-la aqui
+# não muda o contrato deles e resolve duas coisas de uma vez: cada `date` era um
+# processo, e eram meia dúzia por repaint num sistema em que processo é o
+# recurso caro (ver o cabeçalho de lib/config.sh); e dois widgets que leem o
+# relógio em momentos diferentes do mesmo repaint podiam discordar em um
+# segundo, o bastante para uma regressiva e a dica que a comenta divergirem.
+#
+# O `:-` preserva quem já a define: os testes continuam mandando no relógio.
+SL_NOW="${SL_NOW:-$(date +%s)}"
+
 sl_config_load
 
 # Carrega apenas os widgets que a configuração pede. Widget inexistente é
