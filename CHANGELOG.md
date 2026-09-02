@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.2](https://github.com/nidelson/claude-code-statusline/compare/v0.5.1...v0.5.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* vocabulário das dicas ([#31](https://github.com/nidelson/claude-code-statusline/issues/31)) ([8f3a4b5](https://github.com/nidelson/claude-code-statusline/commit/8f3a4b54b706d4cea3583af3c63d73bcc2b3c59f))
+
+
+### Performance Improvements
+
+* corta os forks que faziam o repaint ser cancelado ([#33](https://github.com/nidelson/claude-code-statusline/issues/33)) ([1a519e1](https://github.com/nidelson/claude-code-statusline/commit/1a519e15b40dc17a231525ba3756afaacd19b9b4))
+
 ## [0.5.1](https://github.com/nidelson/claude-code-statusline/compare/v0.5.0...v0.5.1) (2026-08-19)
 
 
