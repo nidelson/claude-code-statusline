@@ -130,6 +130,7 @@ EOF
   # teria efeito até o arquivo de sprint ser tocado — e o mtime tem resolução de
   # um segundo, então nem tocá-lo garantiria. Mesma razão pela qual a chave do
   # flow carrega as opções dele.
-  key="sprint-$(printf '%s' "$file|$label" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set sprint "$file|$label"
+  key="$SL_CACHE_KEY"
   cache_by_mtime "$key" "$file" _sprint_compute "$file" "$label"
 }

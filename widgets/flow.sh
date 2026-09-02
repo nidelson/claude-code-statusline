@@ -76,7 +76,7 @@ _flow_maybe_refresh() {
   [ -f "$bin" ] || return 0
 
   marker="$SL_CACHE_DIR/flow-refresh.stamp"
-  now="$(date +%s)"
+  now="${SL_NOW:-$(date +%s)}"
   last=0
   if [ -f "$marker" ]; then
     # O `|| :` não é decorativo: `read` devolve não-zero ao encontrar EOF sem
@@ -440,8 +440,8 @@ widget_flow_render() {
   # A regressiva da renovação, portanto, só é recalculada quando o JSON muda —
   # uma vez por TTL. Numa cota que renova por mês a menor unidade que aparece na
   # tela é a hora, e cinco minutos de defasagem não a movem.
-  key="flow-$(printf '%s' \
-    "$file|$metric|$sep|${SL_CONFIG_ICONS:-1}|$renewal|$label|${SL_NOW:-}" \
-    | cksum | cut -d' ' -f1)"
+  sl_cache_key_set flow \
+    "$file|$metric|$sep|${SL_CONFIG_ICONS:-1}|$renewal|$label|${SL_NOW:-}"
+  key="$SL_CACHE_KEY"
   cache_by_mtime "$key" "$file" _flow_compute "$file" "$metric" "$sep" "$label"
 }

@@ -119,7 +119,8 @@ widget_repo_render() {
     ""|*[!0-9]*) ttl="$SL_REPO_DEFAULT_TTL" ;;
   esac
 
-  key="repo-$(printf '%s' "$SL_CWD" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set repo "$SL_CWD"
+  key="$SL_CACHE_KEY"
   raw="$(cache_by_ttl "$key" "$ttl" _repo_resolve)"
   [ -n "$raw" ] || return 0
 

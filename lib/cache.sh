@@ -55,6 +55,23 @@ _sl_mtime() {
   esac
 }
 
+# ── A chave de cache ──
+#
+# `printf | cksum | cut -d' ' -f1` era o idioma repetido em onze lugares, e
+# custava três forks: o subshell da captura, o cksum e um cut cujo trabalho
+# inteiro era descartar o tamanho que o cksum imprime ao lado da soma. A
+# expansão `${sum%% *}` faz esse corte sem sair do shell.
+#
+# Devolve por variável, em SL_CACHE_KEY, pelo mesmo motivo de sl_color_set em
+# lib/colors.sh: capturar com `$( )` reintroduziria o fork que a função veio
+# remover. Ver o cabeçalho de lib/config.sh para o que ele custava.
+sl_cache_key_set() {
+  local prefix="$1" material="$2" sum
+  sum="$(printf '%s' "$material" | cksum)"
+  SL_CACHE_KEY="$prefix-${sum%% *}"
+  return 0
+}
+
 _sl_cache_file() {
   printf '%s/%s' "$SL_CACHE_DIR" "$1"
 }
@@ -76,7 +93,7 @@ cache_by_mtime() {
   if [ -f "$file" ]; then
     IFS= read -r cached_mt < "$file"
     if [ "$cached_mt" = "$mt" ]; then
-      sed -n '2,$p' "$file"
+      _sl_cache_body "$file"
       return 0
     fi
   fi
@@ -86,18 +103,31 @@ cache_by_mtime() {
   printf '%s' "$value"
 }
 
+# O corpo é tudo menos a primeira linha, que guarda o carimbo. Era um `sed` por
+# leitura de cache — seis num repaint com doze widgets.
+#
+# `read -d ''` lê até o primeiro NUL, ou seja, o arquivo inteiro, e devolve
+# não-zero ao encontrar o EOF antes dele mesmo tendo preenchido a variável. Daí
+# o `|| :`, sem o qual um chamador com `set -e` abortaria aqui.
+_sl_cache_body() {
+  local content
+  IFS= read -r -d '' content < "$1" || :
+  printf '%s' "${content#*$'\n'}"
+}
+
 cache_by_ttl() {
   local key="$1" ttl="$2"; shift 2
   local file now cached_at value
 
   mkdir -p "$SL_CACHE_DIR" 2>/dev/null
   file="$(_sl_cache_file "$key")"
-  now="$(date +%s)"
+  # Mesmo relógio do resto do repaint; ver bin/statusline.sh.
+  now="${SL_NOW:-$(date +%s)}"
 
   if [ -f "$file" ] && [ "$ttl" -gt 0 ]; then
     IFS= read -r cached_at < "$file"
     if [ $((now - cached_at)) -lt "$ttl" ]; then
-      sed -n '2,$p' "$file"
+      _sl_cache_body "$file"
       return 0
     fi
   fi

@@ -19,14 +19,24 @@
 SL_GITDIR_DEFAULT_TTL=300
 
 _sl_git_paths_compute() {
-  local paths gitdir common top
+  local paths gitdir common top rest
 
   paths="$(git -C "$SL_CWD" --no-optional-locks rev-parse \
            --absolute-git-dir --git-common-dir --show-toplevel 2>/dev/null)" || return 0
 
-  gitdir="$(printf '%s\n' "$paths" | sed -n 1p)"
-  common="$(printf '%s\n' "$paths" | sed -n 2p)"
-  top="$(printf '%s\n' "$paths" | sed -n 3p)"
+  # Três linhas, na ordem dos três argumentos do rev-parse. Recortar por
+  # expansão custa nada; eram três `sed`, três processos, para reler o que já
+  # está na memória do shell. Ver o cabeçalho de lib/config.sh.
+  #
+  # A comparação com a string de origem é o que reproduz o `sed`: quando o
+  # prefixo pedido não existe, `${v#*...}` devolve a string inteira, e é aí que
+  # a linha ausente tem de virar vazio em vez de repetir a anterior.
+  gitdir="${paths%%$'\n'*}"
+  rest="${paths#*$'\n'}"
+  [ "$rest" != "$paths" ] || rest=""
+  common="${rest%%$'\n'*}"
+  top="${rest#*$'\n'}"
+  [ "$top" != "$rest" ] || top=""
 
   [ -n "$gitdir" ] && [ -n "$common" ] || return 0
 
@@ -64,7 +74,8 @@ sl_git_paths() {
     ""|*[!0-9]*) ttl="$SL_GITDIR_DEFAULT_TTL" ;;
   esac
 
-  key="gitpaths-$(printf '%s' "$SL_CWD" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set gitpaths "$SL_CWD"
+  key="$SL_CACHE_KEY"
   cache_by_ttl "$key" "$ttl" _sl_git_paths_compute
 }
 

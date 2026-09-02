@@ -58,6 +58,7 @@ EOF
 
   # A chave sai do git-dir e não do cwd: cada worktree tem HEAD próprio, e dois
   # diretórios da mesma árvore devem compartilhar a entrada.
-  key="branch-$(printf '%s' "$gitdir" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set branch "$gitdir"
+  key="$SL_CACHE_KEY"
   cache_by_mtime "$key" "$gitdir/HEAD" _branch_compute
 }

@@ -118,7 +118,8 @@ _cache_probe() {
   # A chave não inclui SL_NOW, ao contrário da do flow: o que se guarda aqui é a
   # leitura do arquivo, que não depende do relógio. A regressiva é recalculada a
   # cada repaint sobre o valor guardado, sem custo de processo.
-  key="cache-ttl-$(printf '%s' "$SL_TRANSCRIPT" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set cache-ttl "$SL_TRANSCRIPT"
+  key="$SL_CACHE_KEY"
   out="$(cache_by_mtime "$key" "$SL_TRANSCRIPT" _cache_probe_compute "$SL_TRANSCRIPT")"
   [ -n "$out" ] || return 1
   printf '%s' "$out"

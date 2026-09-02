@@ -40,6 +40,7 @@ EOF
   # Árvore principal: nada a mostrar.
   sl_git_is_worktree "$gitdir" "$common" || return 0
 
-  key="worktree-$(printf '%s' "$gitdir" | cksum | cut -d' ' -f1)"
+  sl_cache_key_set worktree "$gitdir"
+  key="$SL_CACHE_KEY"
   cache_by_mtime "$key" "$gitdir/HEAD" _worktree_compute "$top"
 }
