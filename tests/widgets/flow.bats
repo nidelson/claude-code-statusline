@@ -188,6 +188,74 @@ no_icons_config() {
   [[ "$output" != *"$BUD"* ]]
 }
 
+# Cache com gasto e status no budget, como o fetcher os grava. Argumentos: status
+# e consumed_usd.
+write_spent() {
+  cat > "$JSON" <<EOF
+{"ok":true,"fetched_at":1786240000,
+ "budget":{"percentage":21.3,"status":"${1:-ok}","consumed_usd":${2:-138.72}},
+ "requests":{"percentage":12.1,"limit":1000,"unlimited":false}}
+EOF
+}
+
+@test "spent and status are off by default" {
+  # Contraprova primeiro: com a opção ligada o valor TEM de aparecer, senão a
+  # ausência abaixo passaria mesmo com a funcionalidade quebrada.
+  write_spent
+  quiet_config_with '"spent":true,"status":true'
+  run widget_flow_render
+  [[ "$output" == *'$139'* ]]
+  drop_render_cache
+  quiet_config
+  run widget_flow_render
+  [[ "$output" != *'$'* ]]
+  [[ "$output" != *"ok"* ]]
+}
+
+@test "spent shows the dollars consumed, rounded" {
+  write_spent ok 138.72
+  quiet_config_with '"spent":true'
+  run widget_flow_render
+  [[ "$output" == *'$139'* ]]
+}
+
+@test "spent is a budget figure and stays out of requests" {
+  write_spent
+  quiet_config_with '"spent":true'
+  run widget_flow_render
+  [[ "$output" == *'$139'* ]]
+  drop_render_cache
+  quiet_config_with '"metric":"requests","spent":true'
+  run widget_flow_render
+  [[ "$output" != *'$'* ]]
+}
+
+@test "status shows the API word, green when ok" {
+  write_spent ok
+  quiet_config_with '"status":true'
+  run widget_flow_render
+  [[ "$output" == *$'\033[32m'"ok"* ]]
+}
+
+@test "any status other than ok is painted red" {
+  write_spent blocked
+  quiet_config_with '"status":true'
+  run widget_flow_render
+  [[ "$output" == *$'\033[31m'"blocked"* ]]
+}
+
+@test "the spent and status options do not leak across cache entries" {
+  write_spent
+  quiet_config_with '"spent":true,"status":true'
+  run widget_flow_render
+  [[ "$output" == *'$139'* ]]
+  # Mesmo JSON, mesmo mtime, outra configuração: sem as opções na chave do
+  # cache a segunda leitura devolveria a linha da primeira.
+  quiet_config
+  run widget_flow_render
+  [[ "$output" != *'$139'* ]]
+}
+
 @test "icons off swaps the glyphs for whole words" {
   # Quem desliga os ícones normalmente o faz por causa do terminal, não por
   # falta de espaço: a palavra inteira não exige adivinhar o que `req` abrevia.

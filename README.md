@@ -624,6 +624,8 @@ Flow 💰 24%→92% ⟳ 31Aug·20d · 💬 14% · ∞
 | `label` | nome do provedor à frente dos números; `""` remove | `Flow` |
 | `separator` | texto entre os segmentos | `·` |
 | `renewal` | `true`, `false` — mostra a data de renovação e a regressiva | `true` |
+| `spent` | `true`, `false` — mostra o gasto do budget em dólares, ao lado do percentual | `false` |
+| `status` | `true`, `false` — mostra o `status` da API no budget (`ok` verde, outro valor vermelho) | `false` |
 | `ttl` | segundos entre buscas | `300` |
 | `refresh` | `true`, `false` — se deve buscar | `true` |
 | `cache` | caminho do JSON buscado | `$XDG_CACHE_HOME/flow-consumption.json` |

@@ -206,7 +206,7 @@ _flow_layout() {
 # outro lugar.
 _flow_segment() {
   local file="$1" metric="$2" skip_renewal="$3"
-  local label raw used proj renewal blocked out ucolor pcolor rlabel blabel
+  local label raw used proj renewal blocked spent state out ucolor pcolor rlabel blabel
 
   label="$(_flow_label "$metric")"
 
@@ -223,7 +223,7 @@ _flow_segment() {
   raw="$(sl_jq -r --arg m "$metric" '
     if (.ok | not) then empty
     elif (.[$m] | not) then empty
-    else "\(.[$m].percentage // 0) \(.[$m].projected_percentage // "-") \(.[$m].renewal_epoch // "-") \(.[$m].blocked_epoch // "-")"
+    else "\(.[$m].percentage // 0) \(.[$m].projected_percentage // "-") \(.[$m].renewal_epoch // "-") \(.[$m].blocked_epoch // "-") \(.[$m].consumed_usd // "-") \(.[$m].status // "-")"
     end' "$file" 2>/dev/null)" || return 1
   [ -n "$raw" ] || return 1
 
@@ -237,6 +237,8 @@ _flow_segment() {
   proj="$2"
   renewal="$3"
   blocked="$4"
+  spent="$5"
+  state="$6"
 
   used="$(sl_round "$1")" || return 1
   if [ "$proj" = "-" ]; then
@@ -247,6 +249,24 @@ _flow_segment() {
 
   ucolor="$(_flow_color "$used")"
   out="${SL_DIM}${label}${SL_RESET}${ucolor}${used}%${SL_RESET}"
+
+  # Gasto e status são do budget: `requests` conta chamadas, não dinheiro, e a
+  # API só calcula `consumed_usd` para o modo budget. Ambos são opt-in porque o
+  # padrão do widget é calar o que não pede ação — um `ok` permanente ocupa
+  # coluna para dizer o que a ausência de aviso já diz. Quem quer o número
+  # absoluto (percentual não diz quanto custou) liga `spent`; quem quer a
+  # palavra da API, `status`.
+  if [ "$metric" = "budget" ]; then
+    if [ "$(sl_config_widget_opt flow spent false)" = "true" ] && [ "$spent" != "-" ]; then
+      spent="$(sl_round "$spent")" && out="${out} ${SL_DIM}\$${spent}${SL_RESET}"
+    fi
+    if [ "$(sl_config_widget_opt flow status false)" = "true" ] && [ "$state" != "-" ]; then
+      # Qualquer coisa diferente de `ok` é vermelho: a API não documenta os
+      # outros valores, e o que não é `ok` pede atenção, seja qual for o nome.
+      if [ "$state" = "ok" ]; then pcolor="$(sl_color green)"; else pcolor="$(sl_color red)"; fi
+      out="${out} ${pcolor}${state}${SL_RESET}"
+    fi
+  fi
 
   # Projeção só aparece quando muda uma decisão. Um `→48%` verde ocupa espaço
   # permanente para dizer "siga em frente", que já era o estado padrão de quem
@@ -441,7 +461,7 @@ widget_flow_render() {
   # uma vez por TTL. Numa cota que renova por mês a menor unidade que aparece na
   # tela é a hora, e cinco minutos de defasagem não a movem.
   sl_cache_key_set flow \
-    "$file|$metric|$sep|${SL_CONFIG_ICONS:-1}|$renewal|$label|${SL_NOW:-}"
+    "$file|$metric|$sep|${SL_CONFIG_ICONS:-1}|$renewal|$label|$(sl_config_widget_opt flow spent false)|$(sl_config_widget_opt flow status false)|${SL_NOW:-}"
   key="$SL_CACHE_KEY"
   cache_by_mtime "$key" "$file" _flow_compute "$file" "$metric" "$sep" "$label"
 }
