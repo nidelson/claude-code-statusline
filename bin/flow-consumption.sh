@@ -16,6 +16,12 @@
 
 set -u
 
+# Num locale de vírgula decimal (pt_BR, de_DE…) o `printf '%.2f'` do awk imprime
+# `201,50`, e o `jq --argjson` rejeita isso como JSON inválido. Todo número que
+# este script calcula vai parar no JSON do cache, onde o separador é sempre
+# ponto — e o `2>/dev/null` do jq escondia a falha atrás de um cache vazio.
+export LC_ALL=C
+
 AUTH_ENGINE_URL="https://flow.ciandt.com/auth-engine-api/v2/api-key/token"
 CONSUMPTION_URL="https://flow.ciandt.com/metrics-collector-api/rate-limit/me"
 TIMEOUT_S=5
@@ -430,7 +436,10 @@ if [ -n "$proj_out" ]; then
   fi
 fi
 
-jq -n \
+# Arquivo temporário e mv, como o write_error: o widget pode estar lendo o cache
+# agora, e um redirecionamento direto o expõe truncado — ou, se o jq falhar, o
+# deixa vazio e apaga a última leitura boa.
+if ! jq -n \
   --argjson fetched_at "$now" \
   --argjson b_percentage "$b_percentage" --arg b_threshold "$b_threshold" --arg b_status "$b_status" \
   --arg b_renewal_date "$b_renewal_date" --argjson b_limit "$b_limit" --argjson b_consumed_usd "$b_consumed_usd" \
@@ -452,5 +461,10 @@ jq -n \
       renewal_epoch: $r_renewal_epoch, projected_percentage: $r_projected, unlimited: $r_unlimited,
       blocked_epoch: $r_blocked_epoch
     }
-  }' > "$CONSUMPTION_CACHE" 2>/dev/null
+  }' > "$CONSUMPTION_CACHE.tmp" 2>/dev/null; then
+  rm -f "$CONSUMPTION_CACHE.tmp" 2>/dev/null
+  write_error "falha ao montar o JSON de consumo"
+  exit 1
+fi
+mv -f "$CONSUMPTION_CACHE.tmp" "$CONSUMPTION_CACHE" 2>/dev/null
 chmod 600 "$CONSUMPTION_CACHE" 2>/dev/null

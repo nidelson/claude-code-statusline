@@ -826,6 +826,53 @@ EOF
   [ "$(jq -r '.message' "$saved")" != "null" ]
 }
 
+# Fetcher de ponta a ponta com um curl de mentira: o auth-engine devolve um token
+# e os dois endpoints devolvem payloads fixos. O JWT é fictício — só o payload
+# importa, e ele carrega um clientSecret que não vale nada.
+run_fetcher_with_fake_curl() {
+  local bin="$BATS_TEST_TMPDIR/fakebin" payload token
+  mkdir -p "$bin" "$BATS_TEST_TMPDIR/xdg"
+  cat > "$bin/curl" <<'EOF'
+#!/usr/bin/env bash
+# Imita só o que o fetcher usa: devolve o corpo e, por -w, o código HTTP.
+case "$*" in
+  *auth-engine*)    printf '{"access_token":"fake","expires_in":3600}\n200' ;;
+  *mode=budget*)    printf '{"limit":650,"percentage":21.34,"status":"ok","consumed_usd":138.72,"renewal_date":"2026-11-01T00:00:00.000Z"}\n200' ;;
+  *)                printf '{"requests_used":10075,"limit":0,"status":"ok","renewal_date":"2026-11-01T00:00:00.000Z"}\n200' ;;
+esac
+EOF
+  chmod +x "$bin/curl"
+  payload="$(printf '{"clientSecret":"fake","tenant":"t"}' | base64 | tr -d '=\n' | tr '+/' '-_')"
+  token="h.${payload}.s"
+  PATH="$bin:$PATH" ANTHROPIC_AUTH_TOKEN="$token" XDG_CACHE_HOME="$BATS_TEST_TMPDIR/xdg" \
+    bash "$PROJECT_ROOT/bin/flow-consumption.sh"
+}
+
+@test "the fetcher writes a valid cache under a decimal-comma locale" {
+  # Em pt_BR o `printf '%.2f'` do awk imprime `201,50`, o `jq --argjson` rejeita
+  # e o redirecionamento já tinha truncado o cache: arquivo vazio, widget mudo.
+  # O teste só vale onde o locale existe — sem ele, passaria sem provar nada.
+  locale -a 2>/dev/null | grep -qi '^pt_BR\.utf-\?8$' || skip "locale pt_BR.UTF-8 ausente"
+  LC_ALL=pt_BR.UTF-8 run_fetcher_with_fake_curl
+  saved="$BATS_TEST_TMPDIR/xdg/flow-consumption.json"
+  [ -s "$saved" ]
+  [ "$(jq -r '.ok' "$saved")" = "true" ]
+  [ "$(jq -r '.budget.consumed_usd' "$saved")" = "138.72" ]
+  # requests_used 10075 sobre o teto de referência 5000: o percentual que o awk
+  # calcula é justamente o que carregava a vírgula.
+  jq -e '.requests.percentage == 201.5' "$saved" >/dev/null
+  [ ! -f "$saved.tmp" ]
+}
+
+@test "a successful fetch feeds the widget end to end" {
+  # Contraprova do teste acima: o mesmo caminho sob o locale padrão tem de
+  # funcionar, senão o fake curl é que está errado.
+  run_fetcher_with_fake_curl
+  use_config "{\"version\":1,\"lines\":[[\"flow\"]],\"widgets\":{\"flow\":{\"refresh\":false,\"cache\":\"$BATS_TEST_TMPDIR/xdg/flow-consumption.json\"}}}"
+  run widget_flow_render
+  [[ "$output" == *"21%"* ]]
+}
+
 @test "the shipped fetcher holds no hardcoded credential" {
   # Ele troca ANTHROPIC_AUTH_TOKEN por um token curto em runtime; nada de
   # segredo pode estar versionado junto.
