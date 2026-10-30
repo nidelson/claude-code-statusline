@@ -558,7 +558,7 @@ _tip_src_cache_cold() {
 
   money=""
   if cents="$(_tip_regrave_cost "$SL_CTX_USED" "$w")"; then
-    money="$(awk -v c="$cents" 'BEGIN{ printf " (~$%.2f)", c/100 }')"
+    money="$(LC_ALL=C awk -v c="$cents" 'BEGIN{ printf " (~$%.2f)", c/100 }')"
   fi
 
   printf 'cold\t%s regravar %s custa %s×%s — compensa em %s respostas' \
